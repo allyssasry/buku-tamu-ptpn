@@ -87,13 +87,14 @@ class GuestController extends Controller
         // Filter: Search (Name, Institution, Purpose, Meeting With, Card Number, Identity)
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'ilike', "%{$search}%")
-                  ->orWhere('institution', 'ilike', "%{$search}%")
-                  ->orWhere('purpose', 'ilike', "%{$search}%")
-                  ->orWhere('meeting_with', 'ilike', "%{$search}%")
-                  ->orWhere('card_number', 'ilike', "%{$search}%")
-                  ->orWhere('identity_number', 'ilike', "%{$search}%");
+            $like = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $like) {
+                $q->where('name', $like, "%{$search}%")
+                  ->orWhere('institution', $like, "%{$search}%")
+                  ->orWhere('purpose', $like, "%{$search}%")
+                  ->orWhere('meeting_with', $like, "%{$search}%")
+                  ->orWhere('card_number', $like, "%{$search}%")
+                  ->orWhere('identity_number', $like, "%{$search}%");
             });
         }
 

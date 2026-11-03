@@ -22,12 +22,13 @@ class AreaController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'ilike', "%{$search}%")
-                  ->orWhere('floor', 'ilike', "%{$search}%")
-                  ->orWhere('description', 'ilike', "%{$search}%")
-                  ->orWhereHas('building', function ($bq) use ($search) {
-                      $bq->where('name', 'ilike', "%{$search}%");
+            $like = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $like) {
+                $q->where('name', $like, "%{$search}%")
+                  ->orWhere('floor', $like, "%{$search}%")
+                  ->orWhere('description', $like, "%{$search}%")
+                  ->orWhereHas('building', function ($bq) use ($search, $like) {
+                      $bq->where('name', $like, "%{$search}%");
                   });
             });
         }

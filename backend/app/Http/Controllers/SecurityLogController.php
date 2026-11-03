@@ -59,14 +59,15 @@ class SecurityLogController extends Controller
         // Search text
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('description', 'ilike', "%{$search}%")
-                  ->orWhere('notes', 'ilike', "%{$search}%")
-                  ->orWhereHas('area', function ($aq) use ($search) {
-                      $aq->where('name', 'ilike', "%{$search}%")
-                         ->orWhere('floor', 'ilike', "%{$search}%")
-                         ->orWhereHas('building', function ($bq) use ($search) {
-                             $bq->where('name', 'ilike', "%{$search}%");
+            $like = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $like) {
+                $q->where('description', $like, "%{$search}%")
+                  ->orWhere('notes', $like, "%{$search}%")
+                  ->orWhereHas('area', function ($aq) use ($search, $like) {
+                      $aq->where('name', $like, "%{$search}%")
+                         ->orWhere('floor', $like, "%{$search}%")
+                         ->orWhereHas('building', function ($bq) use ($search, $like) {
+                             $bq->where('name', $like, "%{$search}%");
                          });
                   });
             });

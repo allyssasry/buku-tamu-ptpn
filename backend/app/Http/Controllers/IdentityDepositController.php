@@ -19,11 +19,12 @@ class IdentityDepositController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('identity_number', 'ilike', "%{$search}%")
-                  ->orWhereHas('guest', function ($gq) use ($search) {
-                      $gq->where('name', 'ilike', "%{$search}%")
-                         ->orWhere('institution', 'ilike', "%{$search}%");
+            $like = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $like) {
+                $q->where('identity_number', $like, "%{$search}%")
+                  ->orWhereHas('guest', function ($gq) use ($search, $like) {
+                      $gq->where('name', $like, "%{$search}%")
+                         ->orWhere('institution', $like, "%{$search}%");
                   });
             });
         }
