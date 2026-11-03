@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "build": "vite build && (mkdir dist 2>nul || mkdir -p dist 2>/dev/null || true) && (xcopy /E /I /Y public dist 2>nul || cp -r public/* dist/ 2>/dev/null || true)",
         "dev": "vite"
     },
     "devDependencies": {
