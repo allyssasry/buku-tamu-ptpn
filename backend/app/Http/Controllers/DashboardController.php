@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Area;
 use App\Models\Guest;
 use App\Models\SecurityLog;
+use App\Services\FileStorageService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -86,13 +87,14 @@ class DashboardController extends Controller
 
         // Recent guests
         $recentGuests = Guest::latest('submitted_at')->take(5)->get()->map(function ($g) {
-            $g->identity_photo_url = $g->identity_photo ? asset('storage/' . $guestPhoto = $g->identity_photo) : null;
+            $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
+            $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
             return $g;
         });
 
         // Recent security checks
         $recentSecurityLogs = SecurityLog::with(['security', 'area.building'])->latest('checked_at')->take(5)->get()->map(function ($l) {
-            $l->photo_url = $l->photo ? asset('storage/' . $l->photo) : null;
+            $l->photo_url = FileStorageService::formatUrl($l->photo);
             return $l;
         });
 
@@ -311,13 +313,13 @@ class DashboardController extends Controller
 
         if ($category === 'guest') {
             $items->transform(function ($g) {
-                $g->identity_photo_url = $g->identity_photo ? asset('storage/' . $g->identity_photo) : null;
-                $g->guest_photo_url = $g->guest_photo ? asset('storage/' . $g->guest_photo) : null;
+                $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
+                $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
                 return $g;
             });
         } elseif ($category === 'security') {
             $items->transform(function ($l) {
-                $l->photo_url = $l->photo ? asset('storage/' . $l->photo) : null;
+                $l->photo_url = FileStorageService::formatUrl($l->photo);
                 return $l;
             });
         }

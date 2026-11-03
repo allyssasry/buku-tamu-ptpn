@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Area;
 use App\Models\Guest;
 use App\Models\SecurityLog;
+use App\Services\FileStorageService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -102,8 +103,8 @@ class ReportController extends Controller
 
         // Add photo URLs
         $allMatchingGuests->transform(function ($g) {
-            $g->identity_photo_url = $g->identity_photo ? asset('storage/' . $g->identity_photo) : null;
-            $g->guest_photo_url = $g->guest_photo ? asset('storage/' . $g->guest_photo) : null;
+            $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
+            $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
             return $g;
         });
 
@@ -171,7 +172,7 @@ class ReportController extends Controller
         $uninspectedAreas = $allAreas->filter(fn($a) => !in_array($a->id, $inspectedAreaIds))->values();
 
         $logs->transform(function ($l) {
-            $l->photo_url = $l->photo ? asset('storage/' . $l->photo) : null;
+            $l->photo_url = FileStorageService::formatUrl($l->photo);
             return $l;
         });
 

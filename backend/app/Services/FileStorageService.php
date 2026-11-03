@@ -4,13 +4,13 @@ namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class FileStorageService
 {
     /**
-     * Store file from either UploadedFile or base64 string.
-     * Returns relative path to public storage (e.g., "identities/uuid.jpg").
+     * Store photo and return persistent data URI or path.
+     * For cloud serverless (like Vercel), Data URLs are stored directly in TiDB's LONGTEXT column,
+     * ensuring photos never disappear and load with zero external file dependencies.
      */
     public static function storePhoto($fileData, string $folder = 'uploads'): ?string
     {
@@ -20,44 +20,37 @@ class FileStorageService
 
         // Case 1: UploadedFile instance
         if ($fileData instanceof UploadedFile) {
-            $path = $fileData->store($folder, 'public');
-            return $path;
+            $data = file_get_contents($fileData->getRealPath());
+            $mime = $fileData->getMimeType() ?: 'image/jpeg';
+            return 'data:' . $mime . ';base64,' . base64_encode($data);
         }
 
-        // Case 2: Base64 string
+        // Case 2: Base64 data URL
         if (is_string($fileData) && str_starts_with($fileData, 'data:image')) {
-            @list($type, $data) = explode(';', $fileData);
-            @list(, $data)      = explode(',', $data);
-
-            if (!$data) {
-                return null;
-            }
-
-            $decoded = base64_decode($data);
-            if ($decoded === false) {
-                return null;
-            }
-
-            // Determine extension
-            $extension = 'jpg';
-            if (str_contains($type, 'image/png')) {
-                $extension = 'png';
-            } elseif (str_contains($type, 'image/webp')) {
-                $extension = 'webp';
-            }
-
-            $filename = Str::uuid() . '.' . $extension;
-            $relativeFilePath = $folder . '/' . $filename;
-
-            Storage::disk('public')->put($relativeFilePath, $decoded);
-            return $relativeFilePath;
+            return $fileData;
         }
 
-        // Case 3: Already an existing path
+        // Case 3: Already an existing URL or path
         if (is_string($fileData) && !empty($fileData)) {
             return $fileData;
         }
 
         return null;
+    }
+
+    /**
+     * Convert stored photo path or data URL to browser-ready URL.
+     */
+    public static function formatUrl(?string $path): ?string
+    {
+        if (empty($path)) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'data:image') || str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return asset('storage/' . $path);
     }
 }

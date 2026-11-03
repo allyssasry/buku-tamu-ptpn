@@ -76,7 +76,7 @@ class SecurityLogController extends Controller
         $logs = $query->paginate($request->input('per_page', 20));
 
         $logs->getCollection()->transform(function ($log) {
-            $log->photo_url = $log->photo ? asset('storage/' . $log->photo) : null;
+            $log->photo_url = FileStorageService::formatUrl($log->photo);
             return $log;
         });
 
@@ -128,7 +128,7 @@ class SecurityLogController extends Controller
         );
 
         $log->load(['security', 'area.building']);
-        $log->photo_url = asset('storage/' . $log->photo);
+        $log->photo_url = FileStorageService::formatUrl($log->photo);
 
         return response()->json([
             'message' => 'Pengecekan keamanan gedung berhasil dicatat.',
@@ -139,7 +139,7 @@ class SecurityLogController extends Controller
     public function show($id)
     {
         $log = SecurityLog::with(['security', 'area.building'])->findOrFail($id);
-        $log->photo_url = $log->photo ? asset('storage/' . $log->photo) : null;
+        $log->photo_url = FileStorageService::formatUrl($log->photo);
 
         return response()->json($log);
     }

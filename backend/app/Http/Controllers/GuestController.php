@@ -107,8 +107,8 @@ class GuestController extends Controller
 
         // Format photo URLs
         $guests->getCollection()->transform(function ($guest) {
-            $guest->identity_photo_url = $guest->identity_photo ? asset('storage/' . $guest->identity_photo) : null;
-            $guest->guest_photo_url = $guest->guest_photo ? asset('storage/' . $guest->guest_photo) : null;
+            $guest->identity_photo_url = FileStorageService::formatUrl($guest->identity_photo);
+            $guest->guest_photo_url = FileStorageService::formatUrl($guest->guest_photo);
             return $guest;
         });
 
@@ -208,8 +208,8 @@ class GuestController extends Controller
     public function show($id)
     {
         $guest = Guest::with(['identityDeposits.receivedBy', 'identityDeposits.returnedBy', 'verifiedBy', 'checkedOutBy'])->findOrFail($id);
-        $guest->identity_photo_url = $guest->identity_photo ? asset('storage/' . $guest->identity_photo) : null;
-        $guest->guest_photo_url = $guest->guest_photo ? asset('storage/' . $guest->guest_photo) : null;
+        $guest->identity_photo_url = FileStorageService::formatUrl($guest->identity_photo);
+        $guest->guest_photo_url = FileStorageService::formatUrl($guest->guest_photo);
 
         return response()->json($guest);
     }
