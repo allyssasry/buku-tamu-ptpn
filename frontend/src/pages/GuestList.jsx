@@ -26,6 +26,7 @@ const GuestList = () => {
   const { isAdmin, isPimpinan } = useAuth();
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
 
   // Filters
@@ -71,6 +72,7 @@ const GuestList = () => {
   const fetchGuests = async (page = 1) => {
     try {
       setLoading(true);
+      setErrorMessage('');
       const params = {
         page,
         search: search || undefined,
@@ -80,14 +82,15 @@ const GuestList = () => {
         date: date || undefined,
       };
       const res = await api.get('/guests', { params });
-      setGuests(res.data.data);
+      setGuests(res.data.data || []);
       setPagination({
-        current_page: res.data.current_page,
-        last_page: res.data.last_page,
-        total: res.data.total,
+        current_page: res.data.current_page || 1,
+        last_page: res.data.last_page || 1,
+        total: res.data.total || 0,
       });
     } catch (err) {
       console.error("Gagal memuat daftar tamu:", err);
+      setErrorMessage(err.response?.data?.message || err.message || 'Gagal memuat data tamu dari server.');
     } finally {
       setLoading(false);
     }
@@ -358,6 +361,15 @@ const GuestList = () => {
               <tr>
                 <td colSpan={10} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
                   Memuat data tamu...
+                </td>
+              </tr>
+            ) : errorMessage ? (
+              <tr>
+                <td colSpan={10} style={{ textAlign: 'center', padding: 30, color: '#ef4444' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>{errorMessage}</div>
+                  <button className="btn btn-secondary btn-sm" onClick={() => fetchGuests(pagination.current_page)}>
+                    Coba Muat Ulang
+                  </button>
                 </td>
               </tr>
             ) : guests.length === 0 ? (

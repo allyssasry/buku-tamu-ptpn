@@ -105,10 +105,12 @@ class GuestController extends Controller
 
         $guests = $query->paginate($request->input('per_page', 20));
 
-        // Format photo URLs
+        // Format photo indicators (strip heavy Base64 strings from listing to prevent Vercel 4.5MB payload limit)
         $guests->getCollection()->transform(function ($guest) {
-            $guest->identity_photo_url = FileStorageService::formatUrl($guest->identity_photo);
-            $guest->guest_photo_url = FileStorageService::formatUrl($guest->guest_photo);
+            $guest->has_identity_photo = !empty($guest->identity_photo);
+            $guest->has_guest_photo = !empty($guest->guest_photo);
+            unset($guest->identity_photo);
+            unset($guest->guest_photo);
             return $guest;
         });
 
@@ -210,6 +212,8 @@ class GuestController extends Controller
         $guest = Guest::with(['identityDeposits.receivedBy', 'identityDeposits.returnedBy', 'verifiedBy', 'checkedOutBy'])->findOrFail($id);
         $guest->identity_photo_url = FileStorageService::formatUrl($guest->identity_photo);
         $guest->guest_photo_url = FileStorageService::formatUrl($guest->guest_photo);
+        unset($guest->identity_photo);
+        unset($guest->guest_photo);
 
         return response()->json($guest);
     }

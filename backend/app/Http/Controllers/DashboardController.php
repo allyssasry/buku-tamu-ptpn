@@ -89,12 +89,15 @@ class DashboardController extends Controller
         $recentGuests = Guest::latest('submitted_at')->take(5)->get()->map(function ($g) {
             $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
             $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
+            unset($g->identity_photo);
+            unset($g->guest_photo);
             return $g;
         });
 
         // Recent security checks
         $recentSecurityLogs = SecurityLog::with(['security', 'area.building'])->latest('checked_at')->take(5)->get()->map(function ($l) {
             $l->photo_url = FileStorageService::formatUrl($l->photo);
+            unset($l->photo);
             return $l;
         });
 
@@ -315,11 +318,14 @@ class DashboardController extends Controller
             $items->transform(function ($g) {
                 $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
                 $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
+                unset($g->identity_photo);
+                unset($g->guest_photo);
                 return $g;
             });
         } elseif ($category === 'security') {
             $items->transform(function ($l) {
                 $l->photo_url = FileStorageService::formatUrl($l->photo);
+                unset($l->photo);
                 return $l;
             });
         }

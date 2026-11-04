@@ -70,7 +70,7 @@ const Navbar = ({ onToggleSidebar }) => {
           fontWeight: 600
         }}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#059669', boxShadow: '0 0 6px #059669' }}></span>
-          <span>PostgreSQL & API Terhubung</span>
+          <span>Database Cloud & API Terhubung</span>
         </div>
 
         {/* Role Pill */}

@@ -96,14 +96,39 @@ const CameraCapture = ({ label, required = false, value, onChange, placeholderTe
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
         setMode('preview');
-        onChange(reader.result);
+        onChange(compressedDataUrl);
       };
-      reader.readAsDataURL(file);
-    }
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleRetake = () => {

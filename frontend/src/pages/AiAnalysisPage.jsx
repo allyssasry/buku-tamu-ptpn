@@ -141,7 +141,7 @@ const AiAnalysisPage = () => {
               AI Intelligence Analysis System
             </h1>
             <p style={{ fontSize: '0.875rem', color: '#64748b' }}>
-              Analisis Komprehensif Berbasis Data Riil PostgreSQL • Executive Insights & Rekomendasi
+              Analisis Komprehensif Berbasis Data Riil Database Cloud • Executive Insights & Rekomendasi
             </p>
           </div>
         </div>
@@ -211,7 +211,7 @@ const AiAnalysisPage = () => {
             disabled={loading}
           >
             <Sparkles size={18} />
-            <span>{loading ? 'Menganalisis Data PostgreSQL...' : 'Jalankan AI Analysis'}</span>
+            <span>{loading ? 'Menganalisis Data Cloud...' : 'Jalankan AI Analysis'}</span>
           </button>
         </form>
       </div>
@@ -244,7 +244,7 @@ const AiAnalysisPage = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, borderBottom: '1px solid #f1f5f9', paddingBottom: 10 }}>
                 <Users size={20} style={{ color: '#059669' }} />
                 <h3 style={{ fontSize: '1.0625rem', fontWeight: 600, color: '#0f172a' }}>
-                  Analisis Data Tamu (PostgreSQL Grounded)
+                  Analisis Data Tamu (Database Cloud)
                 </h3>
               </div>
 
@@ -332,7 +332,7 @@ const AiAnalysisPage = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, borderBottom: '1px solid #f1f5f9', paddingBottom: 10 }}>
                 <ShieldCheck size={20} style={{ color: '#059669' }} />
                 <h3 style={{ fontSize: '1.0625rem', fontWeight: 600, color: '#0f172a' }}>
-                  Analisis Monitoring Security (PostgreSQL Grounded)
+                  Analisis Monitoring Security (Database Cloud)
                 </h3>
               </div>
 

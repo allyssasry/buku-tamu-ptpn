@@ -101,10 +101,12 @@ class ReportController extends Controller
             $peakHours[] = ['hour' => $hourSlot, 'count' => $cnt];
         }
 
-        // Add photo URLs
+        // Add photo URLs & unset raw heavy fields
         $allMatchingGuests->transform(function ($g) {
             $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
             $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
+            unset($g->identity_photo);
+            unset($g->guest_photo);
             return $g;
         });
 
