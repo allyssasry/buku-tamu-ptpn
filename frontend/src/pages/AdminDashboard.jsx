@@ -529,17 +529,17 @@ const AdminDashboard = () => {
                           fontFamily: 'monospace',
                           fontSize: '0.75rem',
                           fontWeight: 700,
-                          color: '#1d4ed8',
-                          background: '#eff6ff',
+                          color: g.category === 'magang' ? '#7e22ce' : '#1d4ed8',
+                          background: g.category === 'magang' ? '#faf5ff' : '#eff6ff',
                           padding: '2px 6px',
                           borderRadius: 4,
-                          border: '1px solid #bfdbfe',
+                          border: g.category === 'magang' ? '1px solid #d8b4fe' : '1px solid #bfdbfe',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 3
                         }}>
-                          <CreditCard size={11} />
-                          <span>{g.card_number}</span>
+                          {g.category === 'magang' ? <GraduationCap size={11} /> : <CreditCard size={11} />}
+                          <span>{g.category === 'magang' ? `Magang ${g.card_number}` : `Tamu ${g.card_number}`}</span>
                         </span>
                       ) : (
                         <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>

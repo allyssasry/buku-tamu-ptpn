@@ -20,30 +20,48 @@ class GuestController extends Controller
             ->where('card_number', '!=', '')
             ->where('status', '!=', 'Sudah Keluar')
             ->when($excludeGuestId, fn($q) => $q->where('id', '!=', $excludeGuestId))
-            ->get(['id', 'name', 'institution', 'card_number', 'status']);
+            ->get(['id', 'name', 'institution', 'card_number', 'status', 'category']);
 
-        $occupied = [];
-        $details = [];
+        $tamuOccupied = [];
+        $tamuDetails = [];
+        $magangOccupied = [];
+        $magangDetails = [];
 
         foreach ($activeGuests as $g) {
             $card = trim($g->card_number);
             if (is_numeric($card) && (int)$card >= 1 && (int)$card <= 50) {
                 $card = str_pad((int)$card, 3, '0', STR_PAD_LEFT);
             }
-            if ($card !== '') {
-                $occupied[] = $card;
-                $details[$card] = [
-                    'guest_id' => $g->id,
-                    'name' => $g->name,
-                    'institution' => $g->institution,
-                    'status' => $g->status,
-                ];
+            if ($card === '') continue;
+
+            $item = [
+                'guest_id' => $g->id,
+                'name' => $g->name,
+                'institution' => $g->institution,
+                'status' => $g->status,
+                'category' => $g->category,
+            ];
+
+            if ($g->category === 'magang') {
+                $magangOccupied[] = $card;
+                $magangDetails[$card] = $item;
+            } else {
+                $tamuOccupied[] = $card;
+                $tamuDetails[$card] = $item;
             }
         }
 
         return response()->json([
-            'occupied' => array_values(array_unique($occupied)),
-            'details' => $details,
+            'occupied' => array_values(array_unique(array_merge($tamuOccupied, $magangOccupied))),
+            'details' => array_merge($tamuDetails, $magangDetails),
+            'tamu' => [
+                'occupied' => array_values(array_unique($tamuOccupied)),
+                'details' => $tamuDetails,
+            ],
+            'magang' => [
+                'occupied' => array_values(array_unique($magangOccupied)),
+                'details' => $magangDetails,
+            ],
         ]);
     }
 
@@ -147,15 +165,20 @@ class GuestController extends Controller
             'identity_number.regex' => 'Nomor identitas hanya boleh berisi angka.',
         ]);
 
+        $isMagang = $request->input('category') === 'magang';
+        $category = $isMagang ? 'magang' : 'tamu';
+
         if ($request->filled('card_number')) {
             $cardNumber = trim($request->card_number);
             $inUse = Guest::where('card_number', $cardNumber)
+                ->where('category', $category)
                 ->where('status', '!=', 'Sudah Keluar')
                 ->first();
 
             if ($inUse) {
+                $cardLabel = $isMagang ? 'Kartu Magang' : 'Kartu Tamu';
                 return response()->json([
-                    'message' => "Nomor kartu akses {$cardNumber} sedang digunakan oleh tamu {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
+                    'message' => "Nomor {$cardLabel} {$cardNumber} sedang digunakan oleh {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
                 ], 422);
             }
         }
@@ -169,6 +192,8 @@ class GuestController extends Controller
             return response()->json(['message' => 'Foto diri tamu wajib diambil atau diunggah.'], 422);
         }
 
+        $now = Carbon::now();
+
         $guest = Guest::create([
             'name' => $request->name,
             'institution' => $request->filled('institution') ? $request->institution : ($isMagang ? 'Siswa / Mahasiswa Magang' : '-'),
@@ -177,7 +202,7 @@ class GuestController extends Controller
             'email' => $request->email,
             'address' => $request->address,
             'notes' => $request->notes,
-            'category' => $request->input('category', 'tamu'),
+            'category' => $category,
             'card_number' => $request->filled('card_number') ? trim($request->card_number) : null,
             'purpose' => $request->filled('purpose') ? $request->purpose : ($isMagang ? 'Kegiatan Magang / PKL' : '-'),
             'meeting_with' => $request->filled('meeting_with') ? $request->meeting_with : ($isMagang ? 'Pembimbing Divisi' : '-'),
@@ -187,22 +212,45 @@ class GuestController extends Controller
             'identity_number' => $request->filled('identity_number') ? trim($request->identity_number) : null,
             'identity_photo' => $identityPhotoPath,
             'guest_photo' => $guestPhotoPath,
-            'status' => 'Menunggu Verifikasi',
+            'status' => 'Sedang Berkunjung', // Otomatis langsung Clock-In (Sedang Berkunjung)
             'consent' => true,
-            'submitted_at' => Carbon::now(),
+            'submitted_at' => $now,
+            'verified_at' => $now,
+            'check_in_at' => $now,
             'created_by' => $request->user()?->id,
+            'verified_by' => $request->user()?->id,
         ]);
 
+        // Otomatis catat penitipan identitas ke security untuk Tamu Umum
+        if (!$isMagang) {
+            IdentityDeposit::create([
+                'guest_id' => $guest->id,
+                'identity_type' => $guest->identity_type ?: 'KTP',
+                'identity_number' => $guest->identity_number ?: '-',
+                'status' => 'Dititipkan',
+                'deposited_at' => $now,
+                'notes' => 'Otomatis dititipkan saat registrasi tamu masuk (Auto Clock-In).',
+                'received_by' => $request->user()?->id,
+            ]);
+        }
+
         $labelCategory = $guest->category === 'magang' ? 'Anak Magang / PKL' : 'Tamu';
+        $cardTypeStr = $guest->category === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
+        $cardLabel = $guest->card_number ? " [No. {$cardTypeStr}: {$guest->card_number}]" : "";
+
         AuditLog::log(
             $request->user()?->id,
             'CREATE_GUEST',
             'GUEST',
-            "Pendaftaran {$labelCategory} baru: {$guest->name} dari {$guest->institution} ke {$guest->destination_division}." . ($guest->card_number ? " [No. Kartu: {$guest->card_number}]" : "")
+            "Registrasi & Auto Check-In {$labelCategory}: {$guest->name} dari {$guest->institution} ke {$guest->destination_division}.{$cardLabel}"
         );
 
+        $successMsg = $isMagang
+            ? "Pendaftaran kunjungan magang berhasil dan Anda telah tercatat Sedang Berkunjung (Clock-In){$cardLabel}."
+            : "Pendaftaran kunjungan berhasil dan Anda telah tercatat Sedang Berkunjung (Clock-In){$cardLabel}. KTP otomatis tercatat dititipkan ke security.";
+
         return response()->json([
-            'message' => 'Data kunjungan berhasil dicatat. Silakan menunggu proses verifikasi oleh security.',
+            'message' => $successMsg,
             'guest' => $guest,
         ], 201);
     }
@@ -250,14 +298,17 @@ class GuestController extends Controller
 
         if ($request->has('card_number') && $request->filled('card_number')) {
             $cardNumber = trim($request->card_number);
+            $cat = $request->input('category', $guest->category);
             $inUse = Guest::where('card_number', $cardNumber)
+                ->where('category', $cat)
                 ->where('status', '!=', 'Sudah Keluar')
                 ->where('id', '!=', $id)
                 ->first();
 
             if ($inUse) {
+                $cardLabel = $cat === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
                 return response()->json([
-                    'message' => "Nomor kartu akses {$cardNumber} sedang digunakan oleh tamu {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
+                    'message' => "Nomor {$cardLabel} {$cardNumber} sedang digunakan oleh {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
                 ], 422);
             }
             $data['card_number'] = $cardNumber;
@@ -317,14 +368,17 @@ class GuestController extends Controller
 
         if ($request->filled('card_number')) {
             $cardNumber = trim($request->card_number);
+            $cat = $request->input('category', $guest->category);
             $inUse = Guest::where('card_number', $cardNumber)
+                ->where('category', $cat)
                 ->where('status', '!=', 'Sudah Keluar')
                 ->where('id', '!=', $id)
                 ->first();
 
             if ($inUse) {
+                $cardLabel = $cat === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
                 return response()->json([
-                    'message' => "Nomor kartu akses {$cardNumber} sedang digunakan oleh tamu {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
+                    'message' => "Nomor {$cardLabel} {$cardNumber} sedang digunakan oleh {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
                 ], 422);
             }
             $updateData['card_number'] = $cardNumber;
@@ -376,14 +430,17 @@ class GuestController extends Controller
 
         if ($request->filled('card_number')) {
             $cardNumber = trim($request->card_number);
+            $cat = $request->input('category', $guest->category);
             $inUse = Guest::where('card_number', $cardNumber)
+                ->where('category', $cat)
                 ->where('status', '!=', 'Sudah Keluar')
                 ->where('id', '!=', $id)
                 ->first();
 
             if ($inUse) {
+                $cardLabel = $cat === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
                 return response()->json([
-                    'message' => "Nomor kartu akses {$cardNumber} sedang digunakan oleh tamu {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
+                    'message' => "Nomor {$cardLabel} {$cardNumber} sedang digunakan oleh {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
                 ], 422);
             }
             $updateData['card_number'] = $cardNumber;

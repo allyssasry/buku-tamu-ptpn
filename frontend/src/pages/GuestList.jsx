@@ -438,16 +438,16 @@ const GuestList = () => {
                         alignItems: 'center',
                         gap: 4,
                         padding: '3px 8px',
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe',
+                        background: g.category === 'magang' ? '#faf5ff' : '#eff6ff',
+                        border: g.category === 'magang' ? '1px solid #d8b4fe' : '1px solid #bfdbfe',
                         borderRadius: 6,
-                        color: '#1d4ed8',
+                        color: g.category === 'magang' ? '#7e22ce' : '#1d4ed8',
                         fontWeight: 700,
                         fontSize: '0.75rem',
                         fontFamily: 'monospace'
                       }}>
-                        <CreditCard size={12} />
-                        <span>{g.card_number}</span>
+                        {g.category === 'magang' ? <GraduationCap size={12} /> : <CreditCard size={12} />}
+                        <span>{g.category === 'magang' ? `Magang ${g.card_number}` : `Tamu ${g.card_number}`}</span>
                       </span>
                     ) : (
                       <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>
@@ -651,8 +651,15 @@ const GuestList = () => {
                     >
                       <option value="">-- Tanpa Kartu --</option>
                       {CARD_OPTIONS.map((num) => {
-                        const isOccupied = activeCardsData.occupied?.includes(num) && selectedGuest?.card_number !== num;
-                        const occupant = activeCardsData.details?.[num];
+                        const occupiedList = selectedGuest?.category === 'magang'
+                          ? (activeCardsData.magang?.occupied || [])
+                          : (activeCardsData.tamu?.occupied || activeCardsData.occupied || []);
+                        const detailsList = selectedGuest?.category === 'magang'
+                          ? (activeCardsData.magang?.details || {})
+                          : (activeCardsData.tamu?.details || activeCardsData.details || {});
+                        const isOccupied = occupiedList.includes(num) && selectedGuest?.card_number !== num;
+                        const occupant = detailsList[num];
+                        const cardPrefix = selectedGuest?.category === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
                         return (
                           <option
                             key={num}
@@ -660,7 +667,7 @@ const GuestList = () => {
                             disabled={isOccupied}
                             style={isOccupied ? { color: '#94a3b8', background: '#f1f5f9' } : { color: '#0f172a' }}
                           >
-                            {num} {isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Tamu'})` : ''}
+                            {cardPrefix} {num} {isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Tamu'})` : ''}
                           </option>
                         );
                       })}
@@ -862,8 +869,16 @@ const GuestList = () => {
                   >
                     <option value="">-- Pilih No. Kartu Akses (001 - 050) / Kosongkan --</option>
                     {CARD_OPTIONS.map((num) => {
-                      const isOccupied = activeCardsData.occupied?.includes(num) && actionConfirm.guest?.card_number !== num;
-                      const occupant = activeCardsData.details?.[num];
+                      const isMagang = actionConfirm.guest?.category === 'magang';
+                      const occupiedList = isMagang
+                        ? (activeCardsData.magang?.occupied || [])
+                        : (activeCardsData.tamu?.occupied || activeCardsData.occupied || []);
+                      const detailsList = isMagang
+                        ? (activeCardsData.magang?.details || {})
+                        : (activeCardsData.tamu?.details || activeCardsData.details || {});
+                      const isOccupied = occupiedList.includes(num) && actionConfirm.guest?.card_number !== num;
+                      const occupant = detailsList[num];
+                      const cardPrefix = isMagang ? 'Kartu Magang' : 'Kartu Tamu';
                       return (
                         <option
                           key={num}
@@ -871,7 +886,7 @@ const GuestList = () => {
                           disabled={isOccupied}
                           style={isOccupied ? { color: '#94a3b8', background: '#f1f5f9' } : { color: '#0f172a' }}
                         >
-                          {num} {isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Tamu'})` : ''}
+                          {cardPrefix} {num} {isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Tamu'})` : ''}
                         </option>
                       );
                     })}
