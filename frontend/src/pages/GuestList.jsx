@@ -739,39 +739,32 @@ const GuestList = () => {
                 </div>
               </div>
 
-              {/* Photos Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-                <div>
-                  <span className="form-label" style={{ marginBottom: 6, display: 'block' }}>Foto KTP / Identitas</span>
-                  {selectedGuest.identity_photo_url ? (
-                    <div
-                      onClick={() => setPhotoModal({ isOpen: true, src: selectedGuest.identity_photo_url, title: `KTP: ${selectedGuest.name}` })}
-                      style={{ cursor: 'pointer', borderRadius: 8, overflow: 'hidden', border: '1px solid #cbd5e1', background: '#f8fafc', maxHeight: 180, display: 'flex', justifyContent: 'center' }}
-                    >
-                      <img src={selectedGuest.identity_photo_url} alt="KTP" style={{ maxHeight: 180, maxWidth: '100%', objectFit: 'contain' }} />
-                    </div>
-                  ) : (
-                    <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: 8 }}>
-                      Tidak ada foto KTP
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <span className="form-label" style={{ marginBottom: 6, display: 'block' }}>Foto Wajah / Tamu</span>
-                  {selectedGuest.guest_photo_url ? (
-                    <div
-                      onClick={() => setPhotoModal({ isOpen: true, src: selectedGuest.guest_photo_url, title: `Foto Wajah: ${selectedGuest.name}` })}
-                      style={{ cursor: 'pointer', borderRadius: 8, overflow: 'hidden', border: '1px solid #cbd5e1', background: '#f8fafc', maxHeight: 180, display: 'flex', justifyContent: 'center' }}
-                    >
-                      <img src={selectedGuest.guest_photo_url} alt="Guest" style={{ maxHeight: 180, maxWidth: '100%', objectFit: 'contain' }} />
-                    </div>
-                  ) : (
-                    <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: 8 }}>
-                      Tidak ada foto diri tamu
-                    </div>
-                  )}
-                </div>
+              {/* Photo Row */}
+              <div style={{ marginBottom: 20 }}>
+                <span className="form-label" style={{ marginBottom: 6, display: 'block', fontWeight: 600 }}>Foto Wajah / Tamu</span>
+                {selectedGuest.guest_photo_url ? (
+                  <div
+                    onClick={() => setPhotoModal({ isOpen: true, src: selectedGuest.guest_photo_url, title: `Foto Wajah: ${selectedGuest.name}` })}
+                    style={{
+                      cursor: 'pointer',
+                      borderRadius: 10,
+                      overflow: 'hidden',
+                      border: '1px solid #cbd5e1',
+                      background: '#f8fafc',
+                      maxHeight: 240,
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      padding: 10
+                    }}
+                  >
+                    <img src={selectedGuest.guest_photo_url} alt="Foto Tamu" style={{ maxHeight: 220, maxWidth: '100%', objectFit: 'contain', borderRadius: 6 }} />
+                  </div>
+                ) : (
+                  <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1' }}>
+                    Tidak ada foto diri tamu
+                  </div>
+                )}
               </div>
 
               {/* Timestamps audit */}

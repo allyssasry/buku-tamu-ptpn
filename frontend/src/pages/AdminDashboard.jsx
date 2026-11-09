@@ -559,11 +559,11 @@ const AdminDashboard = () => {
                       )}
                     </td>
                     <td>
-                      {g.identity_photo_url ? (
+                      {g.guest_photo_url || g.identity_photo_url ? (
                         <button
                           onClick={() => {
-                            setSelectedPhoto(g.identity_photo_url);
-                            setPhotoTitle(`Identitas: ${g.name} (${g.institution})`);
+                            setSelectedPhoto(g.guest_photo_url || g.identity_photo_url);
+                            setPhotoTitle(`Foto Tamu: ${g.name} (${g.institution})`);
                           }}
                           className="btn btn-secondary btn-sm"
                           style={{ padding: '3px 8px', fontSize: '0.75rem' }}
@@ -797,12 +797,12 @@ const AdminDashboard = () => {
                               {filteredDrilldownItems.map(g => (
                                 <tr key={g.id}>
                                   <td>
-                                    {g.identity_photo_url ? (
+                                    {g.guest_photo_url || g.identity_photo_url ? (
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          setSelectedPhoto(g.identity_photo_url);
-                                          setPhotoTitle(`Foto Identitas: ${g.name} (${g.identity_type})`);
+                                          setSelectedPhoto(g.guest_photo_url || g.identity_photo_url);
+                                          setPhotoTitle(`Foto Tamu: ${g.name}`);
                                         }}
                                         style={{
                                           width: 38,
@@ -814,9 +814,9 @@ const AdminDashboard = () => {
                                           cursor: 'pointer',
                                           display: 'block'
                                         }}
-                                        title="Klik untuk memperbesar foto identitas"
+                                        title="Klik untuk memperbesar foto tamu"
                                       >
-                                        <img src={g.identity_photo_url} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <img src={g.guest_photo_url || g.identity_photo_url} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                       </button>
                                     ) : (
                                       <div style={{ width: 38, height: 38, borderRadius: 8, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
