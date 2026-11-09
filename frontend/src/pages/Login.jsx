@@ -28,7 +28,11 @@ const Login = () => {
         navigate('/guest-form');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login gagal. Periksa kembali email dan password.');
+      if (!err.response) {
+        setError('Tidak dapat terhubung ke server backend (port 8000 mati). Silakan jalankan "php artisan serve" di terminal backend.');
+      } else {
+        setError(err.response?.data?.message || 'Login gagal. Periksa kembali email dan password.');
+      }
     } finally {
       setLoading(false);
     }
