@@ -12,7 +12,10 @@ import {
   Eye,
   CheckCircle,
   PlusCircle,
-  Building
+  Building,
+  LogOut,
+  CreditCard,
+  GraduationCap
 } from 'lucide-react';
 
 const SecurityDashboard = () => {
@@ -63,6 +66,24 @@ const SecurityDashboard = () => {
       fetchDashboard();
     } catch (err) {
       alert(err.response?.data?.message || 'Gagal memverifikasi tamu.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCheckout = async (guest) => {
+    const isMagang = guest.category === 'magang';
+    const label = isMagang ? 'anak magang' : 'tamu';
+    const cardStr = guest.card_number ? ` (Kartu: ${guest.card_number})` : '';
+    if (!window.confirm(`Konfirmasi check-out untuk ${label} ${guest.name}${cardStr}?\n\nKartu akses akan dikembalikan dan KTP/identitas otomatis dicatat kembali.`)) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.post(`/guests/${guest.id}/checkout`);
+      fetchDashboard();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal memproses check-out tamu.');
     } finally {
       setActionLoading(false);
     }
@@ -150,15 +171,15 @@ const SecurityDashboard = () => {
 
       {/* Two Column Layout */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: 24 }}>
-        {/* Card 1: Tamu Hari Ini Menunggu Verifikasi */}
+        {/* Card 1: Kunjungan Terkini & Check-Out */}
         <div className="glass-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
               <h2 style={{ fontSize: '1.0625rem', fontWeight: 600, color: '#0f172a' }}>
-                Tamu Menunggu Verifikasi
+                Kunjungan Terkini & Check-Out
               </h2>
               <p style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                Tamu yang baru saja mengisi formulir di lobby
+                Tamu umum & magang yang aktif berkunjung di gedung
               </p>
             </div>
             <Link to="/guests" className="btn btn-outline btn-sm">
@@ -167,9 +188,9 @@ const SecurityDashboard = () => {
             </Link>
           </div>
 
-          {waitingGuests.length === 0 ? (
+          {!recent_guests || recent_guests.length === 0 ? (
             <div style={{ padding: '36px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
-              Tidak ada tamu yang sedang menunggu verifikasi saat ini.
+              Belum ada data kunjungan tamu hari ini.
             </div>
           ) : (
             <div className="table-container">
@@ -177,34 +198,77 @@ const SecurityDashboard = () => {
                 <thead>
                   <tr>
                     <th>Nama & Instansi</th>
+                    <th>No. Kartu</th>
                     <th>Tujuan</th>
                     <th>Status</th>
-                    <th>Aksi</th>
+                    <th style={{ textAlign: 'right' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {waitingGuests.map((g) => (
+                  {recent_guests.map((g) => (
                     <tr key={g.id}>
                       <td>
                         <div style={{ fontWeight: 600, color: '#0f172a' }}>{g.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{g.institution}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                          {g.category === 'magang' ? '🎓 ' : ''}{g.institution}
+                        </div>
+                      </td>
+                      <td>
+                        {g.card_number ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            padding: '2px 6px',
+                            background: g.category === 'magang' ? '#faf5ff' : '#eff6ff',
+                            border: g.category === 'magang' ? '1px solid #d8b4fe' : '1px solid #bfdbfe',
+                            borderRadius: 4,
+                            color: g.category === 'magang' ? '#7e22ce' : '#1d4ed8',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            fontFamily: 'monospace'
+                          }}>
+                            {g.card_number}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>
+                        )}
                       </td>
                       <td>
                         <div style={{ fontSize: '0.8125rem' }}>{g.destination_floor}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{g.meeting_with}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{g.destination_division}</div>
                       </td>
                       <td>
                         <StatusBadge status={g.status} />
                       </td>
-                      <td>
-                        <button
-                          onClick={() => handleOpenVerifyModal(g)}
-                          className="btn btn-success btn-sm"
-                          style={{ padding: '5px 10px', fontSize: '0.75rem' }}
-                        >
-                          <CheckCircle size={13} />
-                          <span>Verifikasi</span>
-                        </button>
+                      <td style={{ textAlign: 'right' }}>
+                        {g.status === 'Sedang Berkunjung' && (
+                          <button
+                            onClick={() => handleCheckout(g)}
+                            disabled={actionLoading}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.75rem', color: '#b45309' }}
+                            title="Check-Out tamu (KTP & Kartu dikembalikan)"
+                          >
+                            <LogOut size={13} />
+                            <span>Check-Out</span>
+                          </button>
+                        )}
+                        {g.status === 'Menunggu Verifikasi' && (
+                          <button
+                            onClick={() => handleOpenVerifyModal(g)}
+                            className="btn btn-success btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                          >
+                            <CheckCircle size={13} />
+                            <span>Verifikasi</span>
+                          </button>
+                        )}
+                        {g.status === 'Sudah Keluar' && (
+                          <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+                            Selesai
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}

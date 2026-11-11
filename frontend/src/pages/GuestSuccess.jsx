@@ -7,7 +7,7 @@ const GuestSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const guest = location.state?.guest;
-  const message = location.state?.message || "Data kunjungan berhasil dicatat. Silakan menunggu proses verifikasi oleh security.";
+  const message = location.state?.message || "Data kunjungan berhasil dicatat. Anda telah resmi Clock-In (Sedang Berkunjung). Kartu akses telah aktif dan identitas tercatat dititipkan di pos security.";
 
   return (
     <div style={{
@@ -114,6 +114,29 @@ const GuestSuccess = () => {
               </div>
             </div>
           )}
+
+          {/* Checkout Info Box */}
+          <div style={{
+            background: '#f8fafc',
+            border: '1px dashed #cbd5e1',
+            borderRadius: 'var(--radius-md)',
+            padding: '12px 16px',
+            marginBottom: 20,
+            fontSize: '0.8125rem',
+            color: '#475569',
+            lineHeight: 1.5,
+            textAlign: 'left',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10
+          }}>
+            <span style={{ fontSize: '1.125rem', lineHeight: 1 }}>ℹ️</span>
+            <div>
+              <strong style={{ color: '#0f172a' }}>Informasi Kepulangan (Check-Out):</strong>
+              <br />
+              Saat akan keluar dari gedung, silakan kembalikan kartu akses kepada petugas security di lobby untuk melakukan <strong>Check-Out</strong> dan mengambil kembali KTP / kartu identitas Anda.
+            </div>
+          </div>
 
           {/* Action buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

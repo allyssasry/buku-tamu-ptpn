@@ -221,22 +221,21 @@ class GuestController extends Controller
             'verified_by' => $request->user()?->id,
         ]);
 
-        // Otomatis catat penitipan identitas ke security untuk Tamu Umum
-        if (!$isMagang) {
-            IdentityDeposit::create([
-                'guest_id' => $guest->id,
-                'identity_type' => $guest->identity_type ?: 'KTP',
-                'identity_number' => $guest->identity_number ?: '-',
-                'status' => 'Dititipkan',
-                'deposited_at' => $now,
-                'notes' => 'Otomatis dititipkan saat registrasi tamu masuk (Auto Clock-In).',
-                'received_by' => $request->user()?->id,
-            ]);
-        }
+        // Otomatis catat penitipan identitas ke security untuk SEMUA (Tamu Umum & Anak Magang)
+        IdentityDeposit::create([
+            'guest_id' => $guest->id,
+            'identity_type' => $guest->identity_type ?: ($isMagang ? 'ID Card / Kartu Pelajar' : 'KTP'),
+            'identity_number' => $guest->identity_number ?: '-',
+            'status' => 'Dititipkan',
+            'deposited_at' => $now,
+            'notes' => 'Otomatis dititipkan di pos security saat registrasi masuk (Clock-In).',
+            'received_by' => $request->user()?->id,
+        ]);
 
         $labelCategory = $guest->category === 'magang' ? 'Anak Magang / PKL' : 'Tamu';
         $cardTypeStr = $guest->category === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
         $cardLabel = $guest->card_number ? " [No. {$cardTypeStr}: {$guest->card_number}]" : "";
+        $idName = $isMagang ? 'KTP / Kartu Identitas Pelajar' : 'KTP';
 
         AuditLog::log(
             $request->user()?->id,
@@ -245,9 +244,7 @@ class GuestController extends Controller
             "Registrasi & Auto Check-In {$labelCategory}: {$guest->name} dari {$guest->institution} ke {$guest->destination_division}.{$cardLabel}"
         );
 
-        $successMsg = $isMagang
-            ? "Pendaftaran kunjungan magang berhasil dan Anda telah tercatat Sedang Berkunjung (Clock-In){$cardLabel}."
-            : "Pendaftaran kunjungan berhasil dan Anda telah tercatat Sedang Berkunjung (Clock-In){$cardLabel}. KTP otomatis tercatat dititipkan ke security.";
+        $successMsg = "Pendaftaran berhasil! Anda telah resmi Clock-In (Sedang Berkunjung){$cardLabel}. {$idName} otomatis tercatat dititipkan ke security.";
 
         return response()->json([
             'message' => $successMsg,
