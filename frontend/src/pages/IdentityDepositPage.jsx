@@ -164,7 +164,7 @@ const IdentityDepositPage = () => {
                     {dep.deposited_at ? new Date(dep.deposited_at).toLocaleString('id-ID') : '-'}
                   </td>
                   <td style={{ fontSize: '0.8125rem' }}>
-                    {dep.received_by?.name || '-'}
+                    {dep.received_by?.name || 'Otomatis (Pos Security)'}
                   </td>
                   <td>
                     <StatusBadge status={dep.status} />

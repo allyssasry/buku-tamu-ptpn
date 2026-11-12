@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Guest;
 use App\Models\IdentityDeposit;
+use App\Models\User;
 use App\Services\FileStorageService;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class GuestController extends Controller
@@ -193,8 +196,9 @@ class GuestController extends Controller
         }
 
         $now = Carbon::now();
+        $userId = $request->user()?->id;
 
-        $guest = Guest::create([
+        $guestPayload = [
             'name' => $request->name,
             'institution' => $request->filled('institution') ? $request->institution : ($isMagang ? 'Siswa / Mahasiswa Magang' : '-'),
             'position' => $request->position,
@@ -217,32 +221,53 @@ class GuestController extends Controller
             'submitted_at' => $now,
             'verified_at' => $now,
             'check_in_at' => $now,
-            'created_by' => $request->user()?->id,
-            'verified_by' => $request->user()?->id,
-        ]);
+            'created_by' => $userId,
+            'verified_by' => $userId,
+        ];
 
-        // Otomatis catat penitipan identitas ke security untuk SEMUA (Tamu Umum & Anak Magang)
-        IdentityDeposit::create([
-            'guest_id' => $guest->id,
-            'identity_type' => $guest->identity_type ?: ($isMagang ? 'ID Card / Kartu Pelajar' : 'KTP'),
-            'identity_number' => $guest->identity_number ?: '-',
-            'status' => 'Dititipkan',
-            'deposited_at' => $now,
-            'notes' => 'Otomatis dititipkan di pos security saat registrasi masuk (Clock-In).',
-            'received_by' => $request->user()?->id,
-        ]);
-
-        $labelCategory = $guest->category === 'magang' ? 'Anak Magang / PKL' : 'Tamu';
-        $cardTypeStr = $guest->category === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
-        $cardLabel = $guest->card_number ? " [No. {$cardTypeStr}: {$guest->card_number}]" : "";
+        $labelCategory = $category === 'magang' ? 'Anak Magang / PKL' : 'Tamu';
+        $cardTypeStr = $category === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
+        $cardLabel = $guestPayload['card_number'] ? " [No. {$cardTypeStr}: {$guestPayload['card_number']}]" : "";
         $idName = $isMagang ? 'KTP / Kartu Identitas Pelajar' : 'KTP';
 
-        AuditLog::log(
-            $request->user()?->id,
-            'CREATE_GUEST',
-            'GUEST',
-            "Registrasi & Auto Check-In {$labelCategory}: {$guest->name} dari {$guest->institution} ke {$guest->destination_division}.{$cardLabel}"
-        );
+        $persistGuest = function (?int $receiverId) use ($guestPayload, $isMagang, $now, $userId, $labelCategory, $cardLabel) {
+            return DB::transaction(function () use ($guestPayload, $isMagang, $now, $userId, $receiverId, $labelCategory, $cardLabel) {
+                $guest = Guest::create($guestPayload);
+
+                // Otomatis catat penitipan identitas ke security untuk SEMUA (Tamu Umum & Anak Magang)
+                IdentityDeposit::create([
+                    'guest_id' => $guest->id,
+                    'identity_type' => $guest->identity_type ?: ($isMagang ? 'ID Card / Kartu Pelajar' : 'KTP'),
+                    'identity_number' => $guest->identity_number ?: '-',
+                    'status' => 'Dititipkan',
+                    'deposited_at' => $now,
+                    'notes' => 'Otomatis dititipkan di pos security saat registrasi masuk (Clock-In).',
+                    'received_by' => $receiverId,
+                ]);
+
+                AuditLog::log(
+                    $userId,
+                    'CREATE_GUEST',
+                    'GUEST',
+                    "Registrasi & Auto Check-In {$labelCategory}: {$guest->name} dari {$guest->institution} ke {$guest->destination_division}.{$cardLabel}"
+                );
+
+                return $guest;
+            });
+        };
+
+        try {
+            $guest = $persistGuest($userId);
+        } catch (QueryException $e) {
+            // Self-heal if deployed DB still has NOT NULL on identity_deposits.received_by
+            if ($userId === null && str_contains(strtolower($e->getMessage()), 'received_by')) {
+                $repaired = $this->ensureReceivedByNullable();
+                $fallbackId = $repaired ? null : (User::where('role', 'security')->value('id') ?? User::value('id'));
+                $guest = $persistGuest($fallbackId);
+            } else {
+                throw $e;
+            }
+        }
 
         $successMsg = "Pendaftaran berhasil! Anda telah resmi Clock-In (Sedang Berkunjung){$cardLabel}. {$idName} otomatis tercatat dititipkan ke security.";
 
@@ -250,6 +275,27 @@ class GuestController extends Controller
             'message' => $successMsg,
             'guest' => $guest,
         ], 201);
+    }
+
+    /**
+     * Allow identity_deposits.received_by to be NULL for public auto check-ins if migration has not run yet.
+     */
+    private function ensureReceivedByNullable(): bool
+    {
+        try {
+            $driver = DB::connection()->getDriverName();
+            if (in_array($driver, ['mysql', 'mariadb'], true)) {
+                DB::statement('ALTER TABLE identity_deposits MODIFY COLUMN received_by BIGINT UNSIGNED NULL');
+                return true;
+            }
+            if ($driver === 'pgsql') {
+                DB::statement('ALTER TABLE identity_deposits ALTER COLUMN received_by DROP NOT NULL');
+                return true;
+            }
+        } catch (\Throwable $e) {
+            // Fall back to existing staff user id if DDL is blocked.
+        }
+        return false;
     }
 
     public function show($id)

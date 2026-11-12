@@ -49,7 +49,11 @@ const GuestForm = () => {
   }, []);
 
   const handleChange = (field, val) => {
-    setFormData(prev => ({ ...prev, [field]: val }));
+    setFormData(prev => ({
+      ...prev,
+      [field]: val,
+      ...(field === 'category' && prev.category !== val ? { card_number: '' } : {}),
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -111,7 +115,7 @@ const GuestForm = () => {
     } : formData;
 
     try {
-      const res = await api.post('/guests', payload);
+      const res = await api.post('/guests', payload, { timeout: 30000 });
       navigate('/guest-success', {
         state: {
           guest: res.data.guest,
@@ -120,13 +124,23 @@ const GuestForm = () => {
       });
     } catch (err) {
       console.error(err);
-      const valErrors = err.response?.data?.errors;
-      if (valErrors && Object.keys(valErrors).length > 0) {
-        const firstField = Object.keys(valErrors)[0];
-        const errorMsg = valErrors[firstField]?.[0] || err.response?.data?.message;
-        setError(errorMsg);
+      if (!err.response) {
+        setError(
+          err.code === 'ECONNABORTED'
+            ? 'Koneksi ke server melebihi batas waktu (timeout). Silakan coba kirim kembali.'
+            : 'Tidak dapat terhubung ke server backend. Pastikan koneksi internet aktif atau server backend lokal sudah berjalan.'
+        );
       } else {
-        setError(err.response?.data?.message || 'Gagal menyimpan data kunjungan. Silakan periksa kembali kelengkapan form.');
+        const valErrors = err.response.data?.errors;
+        if (valErrors && Object.keys(valErrors).length > 0) {
+          const firstField = Object.keys(valErrors)[0];
+          const errorMsg = valErrors[firstField]?.[0] || err.response.data?.message;
+          setError(errorMsg);
+        } else if (err.response.status >= 500) {
+          setError('Terjadi gangguan pada server saat menyimpan data kunjungan. Silakan coba kembali beberapa saat lagi.');
+        } else {
+          setError(err.response.data?.message || 'Gagal menyimpan data kunjungan. Silakan periksa kembali kelengkapan form.');
+        }
       }
     } finally {
       setLoading(false);
