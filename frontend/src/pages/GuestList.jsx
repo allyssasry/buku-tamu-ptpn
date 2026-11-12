@@ -790,11 +790,6 @@ const GuestList = () => {
                   <div style={{ fontWeight: 600 }}>{new Date(selectedGuest.submitted_at).toLocaleString('id-ID')}</div>
                 </div>
                 <div>
-                  <div style={{ color: '#64748b' }}>Waktu Diverifikasi:</div>
-                  <div style={{ fontWeight: 600 }}>{selectedGuest.verified_at ? new Date(selectedGuest.verified_at).toLocaleString('id-ID') : '-'}</div>
-                  {selectedGuest.verified_by_user && <div style={{ color: '#64748b' }}>Oleh: {selectedGuest.verified_by_user.name}</div>}
-                </div>
-                <div>
                   <div style={{ color: '#64748b' }}>Waktu Masuk (Check-In):</div>
                   <div style={{ fontWeight: 600 }}>{selectedGuest.check_in_at ? new Date(selectedGuest.check_in_at).toLocaleString('id-ID') : '-'}</div>
                 </div>
