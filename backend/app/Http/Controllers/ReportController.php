@@ -14,7 +14,7 @@ class ReportController extends Controller
 {
     public function guests(Request $request)
     {
-        $query = Guest::with(['verifiedBy', 'checkedOutBy', 'activeDeposit']);
+        $query = Guest::with(['verifiedBy:id,name', 'checkedOutBy:id,name']);
 
         // Date Period Filtering
         $period = $request->input('period', 'today');
@@ -53,7 +53,17 @@ class ReportController extends Controller
             $query->where('category', $request->category);
         }
 
-        $allMatchingGuests = (clone $query)->orderByDesc('submitted_at')->get();
+        // Only select required report columns, excluding massive base64 identity_photo and guest_photo to stay within Vercel's payload limits
+        $allMatchingGuests = (clone $query)
+            ->select([
+                'id', 'name', 'institution', 'position', 'phone', 'email', 'address', 'notes',
+                'category', 'card_number', 'purpose', 'meeting_with', 'destination_division',
+                'destination_floor', 'identity_type', 'identity_number', 'status', 'consent',
+                'submitted_at', 'verified_at', 'check_in_at', 'check_out_at',
+                'created_by', 'verified_by', 'checked_out_by'
+            ])
+            ->orderByDesc('submitted_at')
+            ->get();
 
         // 1. Aggregations
         $totalVisits = $allMatchingGuests->count();
@@ -100,15 +110,6 @@ class ReportController extends Controller
         foreach ($hourlyMap as $hourSlot => $cnt) {
             $peakHours[] = ['hour' => $hourSlot, 'count' => $cnt];
         }
-
-        // Add photo URLs & unset raw heavy fields
-        $allMatchingGuests->transform(function ($g) {
-            $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
-            $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
-            unset($g->identity_photo);
-            unset($g->guest_photo);
-            return $g;
-        });
 
         return response()->json([
             'summary' => [
@@ -175,6 +176,7 @@ class ReportController extends Controller
 
         $logs->transform(function ($l) {
             $l->photo_url = FileStorageService::formatUrl($l->photo);
+            unset($l->photo);
             return $l;
         });
 

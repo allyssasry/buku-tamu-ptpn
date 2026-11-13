@@ -14,7 +14,8 @@ import {
   Eye,
   AlertTriangle,
   GraduationCap,
-  CreditCard
+  CreditCard,
+  RefreshCw
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -37,12 +38,14 @@ const ReportsPage = () => {
   const [guestReport, setGuestReport] = useState(null);
   const [securityReport, setSecurityReport] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [photoModal, setPhotoModal] = useState({ isOpen: false, src: '', title: '' });
 
   const fetchReports = async () => {
     try {
       setLoading(true);
+      setErrorMessage('');
       const params = {
         period,
         start_date: period === 'custom' ? startDate : undefined,
@@ -52,14 +55,19 @@ const ReportsPage = () => {
       };
 
       if (activeTab === 'guests') {
-        const res = await api.get('/reports/guests', { params });
+        const res = await api.get('/reports/guests', { params, timeout: 30000 });
         setGuestReport(res.data);
       } else {
-        const res = await api.get('/reports/security', { params });
+        const res = await api.get('/reports/security', { params, timeout: 30000 });
         setSecurityReport(res.data);
       }
     } catch (err) {
       console.error("Gagal memuat rekap laporan:", err);
+      setErrorMessage(
+        err.code === 'ECONNABORTED'
+          ? 'Koneksi ke server laporan melebihi batas waktu (timeout). Silakan coba muat ulang.'
+          : (err.response?.data?.message || 'Gagal memuat rekapitulasi data laporan dari server.')
+      );
     } finally {
       setLoading(false);
     }
@@ -325,8 +333,67 @@ const ReportsPage = () => {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="glass-card" style={{ padding: '60px 24px', textAlign: 'center', margin: '20px 0' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: '50%', background: '#ecfdf5', color: '#059669', marginBottom: 14 }}>
+            <RefreshCw size={22} className="spin" />
+          </div>
+          <h4 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#1e293b', marginBottom: 6 }}>
+            Memuat Rekapitulasi Laporan...
+          </h4>
+          <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>
+            Mengambil data rekap {activeTab === 'guests' ? 'kunjungan tamu' : 'patroli security'} dari cloud database
+          </p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {errorMessage && !loading && (
+        <div style={{
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: 'var(--radius-md)',
+          padding: '20px 24px',
+          marginBottom: 24,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <AlertTriangle size={24} style={{ color: '#dc2626', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 600, color: '#991b1b', fontSize: '0.9375rem' }}>
+                Gagal Memuat Data Laporan
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: '#b91c1c', marginTop: 2 }}>
+                {errorMessage}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={fetchReports}
+            className="btn btn-secondary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: '0.875rem',
+              borderColor: '#fca5a5',
+              color: '#991b1b',
+              background: '#ffffff'
+            }}
+          >
+            <RefreshCw size={14} />
+            <span>Coba Muat Ulang</span>
+          </button>
+        </div>
+      )}
+
       {/* TAB 1: REKAP TAMU */}
-      {activeTab === 'guests' && guestReport && (
+      {activeTab === 'guests' && !loading && !errorMessage && guestReport && (
         <div>
           {/* Summary KPI Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
@@ -394,85 +461,98 @@ const ReportsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {guestReport.data?.map((g, idx) => (
-                  <tr key={g.id}>
-                    <td>{idx + 1}</td>
-                    <td style={{ fontSize: '0.8125rem' }}>{new Date(g.submitted_at).toLocaleString('id-ID')}</td>
-                    <td>
-                      {g.category === 'magang' ? (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 3,
-                          padding: '2px 7px',
-                          borderRadius: 5,
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          background: '#f3e8ff',
-                          color: '#7e22ce',
-                          border: '1px solid #d8b4fe'
-                        }}>
-                          <GraduationCap size={12} />
-                          <span>Magang</span>
-                        </span>
-                      ) : (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 3,
-                          padding: '2px 7px',
-                          borderRadius: 5,
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          background: '#f0fdf4',
-                          color: '#047857',
-                          border: '1px solid #a7f3d0'
-                        }}>
-                          <span>Tamu</span>
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ fontWeight: 600 }}>{g.name}</td>
-                    <td>{g.institution}</td>
-                    <td>
-                      {g.card_number ? (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 3,
-                          padding: '2px 6px',
-                          background: '#eff6ff',
-                          border: '1px solid #bfdbfe',
-                          borderRadius: 4,
-                          color: '#1d4ed8',
-                          fontWeight: 700,
-                          fontSize: '0.75rem',
-                          fontFamily: 'monospace'
-                        }}>
-                          <CreditCard size={11} />
-                          <span>{g.card_number}</span>
-                        </span>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>
-                      )}
-                    </td>
-                    <td>{g.meeting_with} ({g.destination_division})</td>
-                    <td>{g.destination_floor}</td>
-                    <td>
-                      <StatusBadge status={g.status} />
-                      {g.status === 'Sudah Keluar' && (g.check_out_at || g.updated_at) && (
-                        <div style={{ fontSize: '0.6875rem', color: '#64748b', marginTop: 3, fontWeight: 600 }}>
-                          Keluar: {new Date(g.check_out_at || g.updated_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
-                        </div>
-                      )}
-                      {g.status === 'Sedang Berkunjung' && g.check_in_at && (
-                        <div style={{ fontSize: '0.6875rem', color: '#0284c7', marginTop: 3, fontWeight: 500 }}>
-                          Masuk: {new Date(g.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
-                        </div>
-                      )}
+                {guestReport.data && guestReport.data.length > 0 ? (
+                  guestReport.data.map((g, idx) => (
+                    <tr key={g.id}>
+                      <td>{idx + 1}</td>
+                      <td style={{ fontSize: '0.8125rem' }}>{new Date(g.submitted_at).toLocaleString('id-ID')}</td>
+                      <td>
+                        {g.category === 'magang' ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            padding: '2px 7px',
+                            borderRadius: 5,
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            background: '#f3e8ff',
+                            color: '#7e22ce',
+                            border: '1px solid #d8b4fe'
+                          }}>
+                            <GraduationCap size={12} />
+                            <span>Magang</span>
+                          </span>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            padding: '2px 7px',
+                            borderRadius: 5,
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            background: '#f0fdf4',
+                            color: '#047857',
+                            border: '1px solid #a7f3d0'
+                          }}>
+                            <span>Tamu</span>
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{g.name}</td>
+                      <td>{g.institution}</td>
+                      <td>
+                        {g.card_number ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            padding: '2px 6px',
+                            background: '#eff6ff',
+                            border: '1px solid #bfdbfe',
+                            borderRadius: 4,
+                            color: '#1d4ed8',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            fontFamily: 'monospace'
+                          }}>
+                            <CreditCard size={11} />
+                            <span>{g.card_number}</span>
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>
+                        )}
+                      </td>
+                      <td>{g.meeting_with} ({g.destination_division})</td>
+                      <td>{g.destination_floor}</td>
+                      <td>
+                        <StatusBadge status={g.status} />
+                        {g.status === 'Sudah Keluar' && (g.check_out_at || g.updated_at) && (
+                          <div style={{ fontSize: '0.6875rem', color: '#64748b', marginTop: 3, fontWeight: 600 }}>
+                            Keluar: {new Date(g.check_out_at || g.updated_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                          </div>
+                        )}
+                        {g.status === 'Sedang Berkunjung' && g.check_in_at && (
+                          <div style={{ fontSize: '0.6875rem', color: '#0284c7', marginTop: 3, fontWeight: 500 }}>
+                            Masuk: {new Date(g.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
+                      <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                        Belum Ada Data Kunjungan
+                      </div>
+                      <div style={{ fontSize: '0.8125rem' }}>
+                        Tidak ditemukan registrasi kunjungan tamu atau magang untuk periode & filter yang dipilih.
+                      </div>
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -480,7 +560,7 @@ const ReportsPage = () => {
       )}
 
       {/* TAB 2: REKAP SECURITY */}
-      {activeTab === 'security' && securityReport && (
+      {activeTab === 'security' && !loading && !errorMessage && securityReport && (
         <div>
           {/* Summary KPI Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
@@ -544,35 +624,48 @@ const ReportsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {securityReport.data?.map((l, idx) => (
-                  <tr key={l.id}>
-                    <td>{idx + 1}</td>
-                    <td style={{ fontSize: '0.8125rem' }}>{new Date(l.checked_at).toLocaleString('id-ID')}</td>
-                    <td>{l.security?.name}</td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{l.area?.name}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <span style={{ fontSize: '0.6875rem', color: '#1e40af', background: '#eff6ff', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
-                          {l.area?.building?.name || 'Graha Nusa Tiga'}
-                        </span>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{l.area?.floor}</span>
+                {securityReport.data && securityReport.data.length > 0 ? (
+                  securityReport.data.map((l, idx) => (
+                    <tr key={l.id}>
+                      <td>{idx + 1}</td>
+                      <td style={{ fontSize: '0.8125rem' }}>{new Date(l.checked_at).toLocaleString('id-ID')}</td>
+                      <td>{l.security?.name}</td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{l.area?.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                          <span style={{ fontSize: '0.6875rem', color: '#1e40af', background: '#eff6ff', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                            {l.area?.building?.name || 'Graha Nusa Tiga'}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{l.area?.floor}</span>
+                        </div>
+                      </td>
+                      <td><StatusBadge status={l.status} /></td>
+                      <td style={{ maxWidth: 280 }}>{l.description}</td>
+                      <td>
+                        {l.photo_url ? (
+                          <button
+                            onClick={() => setPhotoModal({ isOpen: true, src: l.photo_url, title: `Patroli: ${l.area?.name}` })}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '3px 8px', fontSize: '0.75rem' }}
+                          >
+                            <Eye size={12} />
+                          </button>
+                        ) : '-'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
+                      <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                        Belum Ada Catatan Patroli
+                      </div>
+                      <div style={{ fontSize: '0.8125rem' }}>
+                        Tidak ditemukan riwayat patroli pemeriksaan keamanan untuk periode & filter yang dipilih.
                       </div>
                     </td>
-                    <td><StatusBadge status={l.status} /></td>
-                    <td style={{ maxWidth: 280 }}>{l.description}</td>
-                    <td>
-                      {l.photo_url ? (
-                        <button
-                          onClick={() => setPhotoModal({ isOpen: true, src: l.photo_url, title: `Patroli: ${l.area?.name}` })}
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '3px 8px', fontSize: '0.75rem' }}
-                        >
-                          <Eye size={12} />
-                        </button>
-                      ) : '-'}
-                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
