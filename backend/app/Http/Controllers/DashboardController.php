@@ -14,124 +14,142 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $now = Carbon::now();
-        $today = Carbon::today();
-        $startOfWeek = Carbon::now()->startOfWeek();
-        $startOfMonth = Carbon::now()->startOfMonth();
+        $today = Carbon::today()->toDateString();
+        $startOfWeek = Carbon::now()->startOfWeek()->toDateTimeString();
+        $startOfMonth = Carbon::now()->startOfMonth()->toDateTimeString();
+        $sevenDaysAgo = Carbon::today()->subDays(6)->toDateString();
 
-        // 1. Guest Metrics
-        $guestsToday = Guest::whereDate('submitted_at', $today)->count();
-        $guestsThisWeek = Guest::where('submitted_at', '>=', $startOfWeek)->count();
-        $guestsThisMonth = Guest::where('submitted_at', '>=', $startOfMonth)->count();
-        $guestsCurrentlyIn = Guest::where('status', 'Sedang Berkunjung')->count();
-        $totalInstitutions = Guest::distinct('institution')->count('institution');
-
-        // Magang Metrics
-        $magangToday = Guest::whereDate('submitted_at', $today)->where('category', 'magang')->count();
-        $magangCurrentlyIn = Guest::where('status', 'Sedang Berkunjung')->where('category', 'magang')->count();
-        $totalMagangMonth = Guest::where('submitted_at', '>=', $startOfMonth)->where('category', 'magang')->count();
-        $totalTamuMonth = Guest::where('submitted_at', '>=', $startOfMonth)->where('category', '!=', 'magang')->count();
+        // 1. Guest Metrics in single aggregate query
+        $guestSummary = DB::table('guests')->selectRaw("
+            COUNT(*) as total_all,
+            COALESCE(SUM(CASE WHEN DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as today,
+            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_week,
+            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_month,
+            COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in,
+            COUNT(DISTINCT institution) as total_institutions,
+            COALESCE(SUM(CASE WHEN category = 'magang' AND DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as magang_today,
+            COALESCE(SUM(CASE WHEN category = 'magang' AND status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as magang_currently_in,
+            COALESCE(SUM(CASE WHEN category = 'magang' AND submitted_at >= ? THEN 1 ELSE 0 END), 0) as total_magang_month,
+            COALESCE(SUM(CASE WHEN (category != 'magang' OR category IS NULL) AND submitted_at >= ? THEN 1 ELSE 0 END), 0) as total_tamu_month
+        ", [$today, $startOfWeek, $startOfMonth, $today, $startOfMonth, $startOfMonth])->first();
 
         // Status counts
-        $guestStatusCounts = Guest::select('status', DB::raw('count(*) as count'))
+        $guestStatusCounts = DB::table('guests')
+            ->select('status', DB::raw('count(*) as count'))
             ->groupBy('status')
             ->pluck('count', 'status');
 
         // Kunjungan berdasarkan lantai
-        $visitsByFloor = Guest::select('destination_floor as floor', DB::raw('count(*) as count'))
+        $visitsByFloor = DB::table('guests')
+            ->select('destination_floor as floor', DB::raw('count(*) as count'))
             ->groupBy('destination_floor')
             ->orderByDesc('count')
             ->get();
 
         // Kunjungan berdasarkan divisi
-        $visitsByDivision = Guest::select('destination_division as division', DB::raw('count(*) as count'))
+        $visitsByDivision = DB::table('guests')
+            ->select('destination_division as division', DB::raw('count(*) as count'))
             ->groupBy('destination_division')
             ->orderByDesc('count')
             ->get();
 
-        // 7-day trend (daily visitor count)
+        // 7-day trend in 1 single grouped query
+        $trendRows = DB::table('guests')
+            ->selectRaw('DATE(submitted_at) as visit_date, COUNT(*) as count')
+            ->where('submitted_at', '>=', $sevenDaysAgo)
+            ->groupBy(DB::raw('DATE(submitted_at)'))
+            ->pluck('count', 'visit_date')
+            ->all();
+
         $sevenDaysTrend = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::today()->subDays($i);
-            $count = Guest::whereDate('submitted_at', $date)->count();
+            $ymd = $date->format('Y-m-d');
             $sevenDaysTrend[] = [
-                'date' => $date->format('Y-m-d'),
+                'date' => $ymd,
                 'label' => $date->translatedFormat('d M'),
-                'count' => $count,
+                'count' => (int) ($trendRows[$ymd] ?? 0),
             ];
         }
 
-        // 2. Security Metrics (Today)
-        $securityChecksToday = SecurityLog::whereDate('checked_at', $today)->count();
+        // 2. Security Metrics in single aggregate query
+        $secSummary = DB::table('security_logs')->selectRaw("
+            COUNT(*) as total_checks,
+            COALESCE(SUM(CASE WHEN DATE(checked_at) = ? THEN 1 ELSE 0 END), 0) as checks_today,
+            COALESCE(SUM(CASE WHEN status = 'Aman' THEN 1 ELSE 0 END), 0) as total_aman,
+            COALESCE(SUM(CASE WHEN status = 'Perlu Perhatian' THEN 1 ELSE 0 END), 0) as total_perlu_perhatian,
+            COALESCE(SUM(CASE WHEN status = 'Insiden' THEN 1 ELSE 0 END), 0) as total_insiden,
+            COALESCE(SUM(CASE WHEN DATE(checked_at) = ? AND status = 'Aman' THEN 1 ELSE 0 END), 0) as today_aman,
+            COALESCE(SUM(CASE WHEN DATE(checked_at) = ? AND status = 'Perlu Perhatian' THEN 1 ELSE 0 END), 0) as today_perlu_perhatian,
+            COALESCE(SUM(CASE WHEN DATE(checked_at) = ? AND status = 'Insiden' THEN 1 ELSE 0 END), 0) as today_insiden
+        ", [$today, $today, $today, $today])->first();
 
-        // Total active areas
-        $allActiveAreas = Area::where('active', true)->get();
-        $totalActiveAreasCount = $allActiveAreas->count();
-
-        // Checked areas today
-        $checkedAreaIdsToday = SecurityLog::whereDate('checked_at', $today)
-            ->pluck('area_id')
-            ->unique();
-        $checkedAreasCount = $checkedAreaIdsToday->count();
+        $totalActiveAreasCount = DB::table('areas')->where('active', 1)->count();
+        $checkedAreasCount = DB::table('security_logs')
+            ->whereDate('checked_at', $today)
+            ->distinct()
+            ->count('area_id');
         $uncheckedAreasCount = max(0, $totalActiveAreasCount - $checkedAreasCount);
 
-        // Security Status counts today
-        $statusAmanToday = SecurityLog::whereDate('checked_at', $today)->where('status', 'Aman')->count();
-        $statusPerluPerhatianToday = SecurityLog::whereDate('checked_at', $today)->where('status', 'Perlu Perhatian')->count();
-        $statusInsidenToday = SecurityLog::whereDate('checked_at', $today)->where('status', 'Insiden')->count();
-
-        // All-time security status counts
-        $statusAmanTotal = SecurityLog::where('status', 'Aman')->count();
-        $statusPerluPerhatianTotal = SecurityLog::where('status', 'Perlu Perhatian')->count();
-        $statusInsidenTotal = SecurityLog::where('status', 'Insiden')->count();
-
-        // Recent guests
-        $recentGuests = Guest::latest('submitted_at')->take(5)->get()->map(function ($g) {
-            $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
-            $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
-            unset($g->identity_photo);
-            unset($g->guest_photo);
-            return $g;
-        });
+        // Recent guests (lightweight select, stripping heavy data URLs before response)
+        $recentGuests = Guest::select([
+                'id', 'name', 'institution', 'position', 'category', 'card_number',
+                'purpose', 'meeting_with', 'destination_division', 'destination_floor',
+                'status', 'submitted_at', 'check_in_at', 'identity_photo', 'guest_photo'
+            ])
+            ->latest('submitted_at')
+            ->take(5)
+            ->get()
+            ->map(function ($g) {
+                $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
+                $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
+                unset($g->identity_photo);
+                unset($g->guest_photo);
+                return $g;
+            });
 
         // Recent security checks
-        $recentSecurityLogs = SecurityLog::with(['security', 'area.building'])->latest('checked_at')->take(5)->get()->map(function ($l) {
-            $l->photo_url = FileStorageService::formatUrl($l->photo);
-            unset($l->photo);
-            return $l;
-        });
+        $recentSecurityLogs = SecurityLog::with(['security:id,name', 'area:id,name,floor,building_id', 'area.building:id,name'])
+            ->latest('checked_at')
+            ->take(5)
+            ->get()
+            ->map(function ($l) {
+                $l->photo_url = FileStorageService::formatUrl($l->photo);
+                unset($l->photo);
+                return $l;
+            });
 
         return response()->json([
             'guest_stats' => [
-                'today' => $guestsToday,
-                'this_week' => $guestsThisWeek,
-                'this_month' => $guestsThisMonth,
-                'currently_in' => $guestsCurrentlyIn,
-                'total_institutions' => $totalInstitutions,
-                'magang_today' => $magangToday,
-                'magang_currently_in' => $magangCurrentlyIn,
-                'total_magang_month' => $totalMagangMonth,
-                'total_tamu_month' => $totalTamuMonth,
+                'today' => (int) ($guestSummary->today ?? 0),
+                'this_week' => (int) ($guestSummary->this_week ?? 0),
+                'this_month' => (int) ($guestSummary->this_month ?? 0),
+                'currently_in' => (int) ($guestSummary->currently_in ?? 0),
+                'total_institutions' => (int) ($guestSummary->total_institutions ?? 0),
+                'magang_today' => (int) ($guestSummary->magang_today ?? 0),
+                'magang_currently_in' => (int) ($guestSummary->magang_currently_in ?? 0),
+                'total_magang_month' => (int) ($guestSummary->total_magang_month ?? 0),
+                'total_tamu_month' => (int) ($guestSummary->total_tamu_month ?? 0),
                 'by_status' => $guestStatusCounts,
                 'by_category' => [
-                    'tamu' => $totalTamuMonth,
-                    'magang' => $totalMagangMonth,
+                    'tamu' => (int) ($guestSummary->total_tamu_month ?? 0),
+                    'magang' => (int) ($guestSummary->total_magang_month ?? 0),
                 ],
                 'by_floor' => $visitsByFloor,
                 'by_division' => $visitsByDivision,
                 'trend' => $sevenDaysTrend,
             ],
             'security_stats' => [
-                'checks_today' => $securityChecksToday,
-                'total_areas' => $totalActiveAreasCount,
-                'checked_areas_count' => $checkedAreasCount,
-                'unchecked_areas_count' => $uncheckedAreasCount,
-                'today_aman' => $statusAmanToday,
-                'today_perlu_perhatian' => $statusPerluPerhatianToday,
-                'today_insiden' => $statusInsidenToday,
-                'total_aman' => $statusAmanTotal,
-                'total_perlu_perhatian' => $statusPerluPerhatianTotal,
-                'total_insiden' => $statusInsidenTotal,
+                'checks_today' => (int) ($secSummary->checks_today ?? 0),
+                'total_areas' => (int) $totalActiveAreasCount,
+                'checked_areas_count' => (int) $checkedAreasCount,
+                'unchecked_areas_count' => (int) $uncheckedAreasCount,
+                'today_aman' => (int) ($secSummary->today_aman ?? 0),
+                'today_perlu_perhatian' => (int) ($secSummary->today_perlu_perhatian ?? 0),
+                'today_insiden' => (int) ($secSummary->today_insiden ?? 0),
+                'total_aman' => (int) ($secSummary->total_aman ?? 0),
+                'total_perlu_perhatian' => (int) ($secSummary->total_perlu_perhatian ?? 0),
+                'total_insiden' => (int) ($secSummary->total_insiden ?? 0),
             ],
             'recent_guests' => $recentGuests,
             'recent_security_logs' => $recentSecurityLogs,

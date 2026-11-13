@@ -45,6 +45,7 @@ import {
 const AdminDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [photoTitle, setPhotoTitle] = useState('');
 
@@ -64,10 +65,16 @@ const AdminDashboard = () => {
   const fetchDashboard = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/dashboard');
+      setErrorMessage('');
+      const res = await api.get('/dashboard', { timeout: 30000 });
       setData(res.data);
     } catch (err) {
       console.error("Gagal memuat dashboard admin:", err);
+      setErrorMessage(
+        err.code === 'ECONNABORTED'
+          ? 'Koneksi ke server dashboard melebihi batas waktu (timeout). Silakan klik Coba Lagi.'
+          : (err.response?.data?.message || 'Gagal memuat data metrik dashboard dari server.')
+      );
     } finally {
       setLoading(false);
     }
@@ -118,6 +125,31 @@ const AdminDashboard = () => {
     return (
       <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-secondary)' }}>
         Memuat Metrik Dashboard Perusahaan...
+      </div>
+    );
+  }
+
+  if (!loading && (!data || errorMessage)) {
+    return (
+      <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+        <div style={{
+          maxWidth: 480,
+          margin: '0 auto',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: 12,
+          padding: 24,
+        }}>
+          <div style={{ color: '#dc2626', fontWeight: 700, fontSize: '1.0625rem', marginBottom: 8 }}>
+            Gagal Memuat Metrik Dashboard
+          </div>
+          <p style={{ color: '#7f1d1d', fontSize: '0.875rem', marginBottom: 18, lineHeight: 1.5 }}>
+            {errorMessage || 'Tidak dapat terhubung ke server untuk memuat metrik kunjungan dan keamanan.'}
+          </p>
+          <button className="btn btn-primary" onClick={fetchDashboard} style={{ margin: '0 auto' }}>
+            Coba Muat Ulang
+          </button>
+        </div>
       </div>
     );
   }
