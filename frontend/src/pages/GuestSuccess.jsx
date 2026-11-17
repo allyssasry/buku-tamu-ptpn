@@ -7,7 +7,7 @@ const GuestSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const guest = location.state?.guest;
-  const message = location.state?.message || "Data kunjungan berhasil dicatat. Anda telah resmi Clock-In (Sedang Berkunjung). Kartu akses telah aktif dan identitas tercatat dititipkan di pos security.";
+  const message = location.state?.message || "Data kunjungan berhasil dicatat. Silakan menuju pos security untuk verifikasi identitas dan konfirmasi kedatangan.";
 
   return (
     <div style={{
@@ -132,9 +132,9 @@ const GuestSuccess = () => {
           }}>
             <span style={{ fontSize: '1.125rem', lineHeight: 1 }}>ℹ️</span>
             <div>
-              <strong style={{ color: '#0f172a' }}>Informasi Kepulangan (Check-Out):</strong>
+              <strong style={{ color: '#0f172a' }}>Verifikasi Security & Check-Out:</strong>
               <br />
-              Saat akan keluar dari gedung, silakan kembalikan kartu akses kepada petugas security di lobby untuk melakukan <strong>Check-Out</strong> dan mengambil kembali KTP / kartu identitas Anda.
+              Silakan serahkan identitas fisik (KTP/Kartu Pelajar) Anda kepada petugas security di pos lobby untuk verifikasi identitas dan pengambilan kartu akses. Saat akan selesai berkunjung/keluar gedung, silakan kembalikan kartu akses kepada petugas security untuk melakukan <strong>Check-Out</strong>.
             </div>
           </div>
 

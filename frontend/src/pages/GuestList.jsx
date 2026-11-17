@@ -930,7 +930,14 @@ const GuestList = () => {
               }}>
                 <div>
                   <div style={{ color: '#64748b' }}>Waktu Pengisian:</div>
-                  <div style={{ fontWeight: 600 }}>{new Date(selectedGuest.submitted_at).toLocaleString('id-ID')}</div>
+                  <div style={{ fontWeight: 600 }}>{selectedGuest.submitted_at ? new Date(selectedGuest.submitted_at).toLocaleString('id-ID') : '-'}</div>
+                </div>
+                <div>
+                  <div style={{ color: '#64748b' }}>Waktu Diverifikasi:</div>
+                  <div style={{ fontWeight: 600 }}>{selectedGuest.verified_at ? new Date(selectedGuest.verified_at).toLocaleString('id-ID') : '-'}</div>
+                  {(selectedGuest.verified_by?.name || selectedGuest.verified_by_user?.name) && (
+                    <div style={{ color: '#64748b', marginTop: 2 }}>Oleh: {selectedGuest.verified_by?.name || selectedGuest.verified_by_user?.name}</div>
+                  )}
                 </div>
                 <div>
                   <div style={{ color: '#64748b' }}>Waktu Masuk (Check-In):</div>
@@ -939,6 +946,9 @@ const GuestList = () => {
                 <div>
                   <div style={{ color: '#64748b' }}>Waktu Keluar (Check-Out):</div>
                   <div style={{ fontWeight: 600 }}>{selectedGuest.check_out_at ? new Date(selectedGuest.check_out_at).toLocaleString('id-ID') : '-'}</div>
+                  {(selectedGuest.checked_out_by?.name || selectedGuest.checked_out_by_user?.name) && (
+                    <div style={{ color: '#64748b', marginTop: 2 }}>Oleh: {selectedGuest.checked_out_by?.name || selectedGuest.checked_out_by_user?.name}</div>
+                  )}
                 </div>
               </div>
             </div>

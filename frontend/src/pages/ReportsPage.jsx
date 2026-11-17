@@ -95,6 +95,7 @@ const ReportsPage = () => {
       'Jenis Identitas': g.identity_type,
       'Nomor Identitas': g.identity_number,
       'Status': g.status,
+      'Waktu Diverifikasi': g.verified_at ? new Date(g.verified_at).toLocaleString('id-ID') : '-',
       'Waktu Check-In': g.check_in_at ? new Date(g.check_in_at).toLocaleString('id-ID') : '-',
       'Waktu Check-Out': g.check_out_at ? new Date(g.check_out_at).toLocaleString('id-ID') : '-',
     }));

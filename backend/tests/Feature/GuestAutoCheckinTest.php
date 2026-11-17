@@ -14,7 +14,7 @@ class GuestAutoCheckinTest extends TestCase
 
     private string $dummyPhoto = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
 
-    public function test_public_magang_submission_auto_checkins_and_auto_deposits_id(): void
+    public function test_public_magang_submission_waits_for_verification_and_security_verifies_and_checkins(): void
     {
         $response = $this->postJson('/api/guests', [
             'name' => 'isaa',
@@ -30,18 +30,47 @@ class GuestAutoCheckinTest extends TestCase
             'name' => 'isaa',
             'category' => 'magang',
             'card_number' => '001',
-            'status' => 'Sedang Berkunjung',
+            'status' => 'Menunggu Verifikasi',
         ]);
 
         $guest = Guest::where('name', 'isaa')->firstOrFail();
-        $this->assertNotNull($guest->check_in_at);
-        $this->assertNotNull($guest->verified_at);
+        $this->assertNull($guest->check_in_at);
+        $this->assertNull($guest->verified_at);
 
         $this->assertDatabaseHas('identity_deposits', [
             'guest_id' => $guest->id,
             'status' => 'Dititipkan',
             'received_by' => null,
         ]);
+
+        // Security officer verifies the guest
+        $security = User::create([
+            'name' => 'Petugas Security',
+            'email' => 'security@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'security',
+        ]);
+
+        $verifyRes = $this->actingAs($security)
+            ->postJson("/api/guests/{$guest->id}/verify", [
+                'status' => 'Terverifikasi',
+                'deposit_id' => true,
+            ]);
+
+        $verifyRes->assertStatus(200);
+        $guest->refresh();
+        $this->assertEquals('Terverifikasi', $guest->status);
+        $this->assertNotNull($guest->verified_at);
+        $this->assertEquals($security->id, $guest->verified_by);
+
+        // Security officer checks in the guest
+        $checkinRes = $this->actingAs($security)
+            ->postJson("/api/guests/{$guest->id}/checkin");
+
+        $checkinRes->assertStatus(200);
+        $guest->refresh();
+        $this->assertEquals('Sedang Berkunjung', $guest->status);
+        $this->assertNotNull($guest->check_in_at);
     }
 
     public function test_tamu_and_magang_card_pools_are_independent_and_checkout_frees_card_and_returns_id(): void

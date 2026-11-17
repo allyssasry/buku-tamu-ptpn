@@ -228,13 +228,13 @@ class GuestController extends Controller
             'identity_number' => $request->filled('identity_number') ? trim($request->identity_number) : null,
             'identity_photo' => $identityPhotoPath,
             'guest_photo' => $guestPhotoPath,
-            'status' => 'Sedang Berkunjung', // Otomatis langsung Clock-In (Sedang Berkunjung)
+            'status' => 'Menunggu Verifikasi', // Menunggu verifikasi petugas security di lobby
             'consent' => true,
             'submitted_at' => $now,
-            'verified_at' => $now,
-            'check_in_at' => $now,
+            'verified_at' => null,
+            'check_in_at' => null,
             'created_by' => $userId,
-            'verified_by' => $userId,
+            'verified_by' => null,
         ];
 
         $labelCategory = $category === 'magang' ? 'Anak Magang / PKL' : 'Tamu';
@@ -253,7 +253,7 @@ class GuestController extends Controller
                     'identity_number' => $guest->identity_number ?: '-',
                     'status' => 'Dititipkan',
                     'deposited_at' => $now,
-                    'notes' => 'Otomatis dititipkan di pos security saat registrasi masuk (Clock-In).',
+                    'notes' => 'Dititipkan di pos security saat pengisian formulir kunjungan.',
                     'received_by' => $receiverId,
                 ]);
 
@@ -261,7 +261,7 @@ class GuestController extends Controller
                     $userId,
                     'CREATE_GUEST',
                     'GUEST',
-                    "Registrasi & Auto Check-In {$labelCategory}: {$guest->name} dari {$guest->institution} ke {$guest->destination_division}.{$cardLabel}"
+                    "Registrasi {$labelCategory}: {$guest->name} dari {$guest->institution} ke {$guest->destination_division}. Menunggu verifikasi security.{$cardLabel}"
                 );
 
                 return $guest;
@@ -281,7 +281,7 @@ class GuestController extends Controller
             }
         }
 
-        $successMsg = "Pendaftaran berhasil! Anda telah resmi Clock-In (Sedang Berkunjung){$cardLabel}. {$idName} otomatis tercatat dititipkan ke security.";
+        $successMsg = "Pendaftaran berhasil dicatat! Silakan menuju ke pos security untuk verifikasi data dan pengambilan kartu akses.";
 
         return response()->json([
             'message' => $successMsg,
@@ -445,12 +445,21 @@ class GuestController extends Controller
 
         $guest->update($updateData);
 
-        // If ID deposit is requested during verification
-        if ($request->boolean('deposit_id')) {
+        // Ensure identity deposit is assigned to verifying security officer
+        $deposit = IdentityDeposit::where('guest_id', $guest->id)
+            ->where('status', 'Dititipkan')
+            ->first();
+
+        if ($deposit) {
+            $deposit->update([
+                'received_by' => $user->id,
+                'notes' => $request->input('deposit_notes', $deposit->notes ?: 'Diverifikasi oleh petugas security.'),
+            ]);
+        } elseif ($request->boolean('deposit_id', true)) {
             IdentityDeposit::create([
                 'guest_id' => $guest->id,
-                'identity_type' => $guest->identity_type,
-                'identity_number' => $guest->identity_number,
+                'identity_type' => $guest->identity_type ?: ($guest->category === 'magang' ? 'ID Card / Kartu Pelajar' : 'KTP'),
+                'identity_number' => $guest->identity_number ?: '-',
                 'received_by' => $user->id,
                 'deposited_at' => Carbon::now(),
                 'status' => 'Dititipkan',
@@ -467,7 +476,7 @@ class GuestController extends Controller
 
         return response()->json([
             'message' => 'Tamu berhasil diverifikasi oleh security.',
-            'guest' => $guest->fresh(['activeDeposit']),
+            'guest' => $guest->fresh(['activeDeposit', 'verifiedBy']),
         ]);
     }
 
