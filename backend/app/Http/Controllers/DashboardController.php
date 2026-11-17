@@ -161,7 +161,8 @@ class DashboardController extends Controller
         $type = $request->input('type');
         $today = Carbon::today();
         $startOfMonth = Carbon::now()->startOfMonth();
-        $baseUrl = $request->getSchemeAndHttpHost() . '/api';
+        $scheme = ($request->isSecure() || $request->header('x-forwarded-proto') === 'https' || str_contains($request->getHttpHost(), 'vercel.app')) ? 'https' : $request->getScheme();
+        $baseUrl = $scheme . '://' . $request->getHttpHost() . '/api';
 
         $guestColumns = [
             'id', 'name', 'category', 'identity_type', 'institution', 'purpose',
