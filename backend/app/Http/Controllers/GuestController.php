@@ -77,6 +77,18 @@ class GuestController extends Controller
             $query->whereDate('submitted_at', $request->date);
         }
 
+        // Filter: Period (today, this_week, this_month)
+        if ($request->filled('period') && $request->period !== 'all') {
+            $period = $request->period;
+            if ($period === 'today') {
+                $query->whereDate('submitted_at', Carbon::today());
+            } elseif ($period === 'this_week') {
+                $query->where('submitted_at', '>=', Carbon::now()->startOfWeek());
+            } elseif ($period === 'this_month') {
+                $query->where('submitted_at', '>=', Carbon::now()->startOfMonth());
+            }
+        }
+
         // Filter: Date Range
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('submitted_at', [

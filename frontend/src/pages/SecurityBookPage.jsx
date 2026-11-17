@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
@@ -21,17 +22,18 @@ import {
 
 const SecurityBookPage = () => {
   const { user, isPimpinan, isSecurity } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [logs, setLogs] = useState([]);
   const [areas, setAreas] = useState([]);
   const [buildings, setBuildings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [buildingFilter, setBuildingFilter] = useState('all');
-  const [areaFilter, setAreaFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('');
-  const [search, setSearch] = useState('');
+  // Filters initialized from searchParams (if any)
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
+  const [buildingFilter, setBuildingFilter] = useState(() => searchParams.get('building_id') || 'all');
+  const [areaFilter, setAreaFilter] = useState(() => searchParams.get('area_id') || 'all');
+  const [dateFilter, setDateFilter] = useState(() => searchParams.get('date') || '');
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
 
   // Create Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -97,6 +99,24 @@ const SecurityBookPage = () => {
     fetchAreas();
   }, []);
 
+  // Sync state when URL query params change
+  useEffect(() => {
+    const qStatus = searchParams.get('status');
+    if (qStatus !== null && qStatus !== statusFilter) setStatusFilter(qStatus);
+
+    const qDate = searchParams.get('date');
+    if (qDate !== null && qDate !== dateFilter) setDateFilter(qDate);
+
+    const qBuilding = searchParams.get('building_id');
+    if (qBuilding !== null && qBuilding !== buildingFilter) setBuildingFilter(qBuilding);
+
+    const qArea = searchParams.get('area_id');
+    if (qArea !== null && qArea !== areaFilter) setAreaFilter(qArea);
+
+    const qSearch = searchParams.get('search');
+    if (qSearch !== null && qSearch !== search) setSearch(qSearch);
+  }, [searchParams]);
+
   useEffect(() => {
     fetchLogs();
   }, [statusFilter, buildingFilter, areaFilter, dateFilter, search]);
@@ -107,6 +127,7 @@ const SecurityBookPage = () => {
     setAreaFilter('all');
     setDateFilter('');
     setSearch('');
+    setSearchParams({});
   };
 
   const isFiltered = statusFilter !== 'all' || buildingFilter !== 'all' || areaFilter !== 'all' || dateFilter !== '' || search !== '';

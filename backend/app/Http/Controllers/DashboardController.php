@@ -209,7 +209,7 @@ class DashboardController extends Controller
                 $title = 'Tamu Bulan Ini';
                 $subtitle = 'Akumulasi seluruh pengunjung terdaftar pada bulan ' . Carbon::now()->translatedFormat('F Y');
                 $category = 'guest';
-                $linkTo = '/guests';
+                $linkTo = '/guests?period=this_month';
                 break;
 
             case 'currently_in':

@@ -733,6 +733,7 @@ const AdminDashboard = () => {
                 {drilldownModal.linkTo && (
                   <Link
                     to={drilldownModal.linkTo}
+                    onClick={() => setDrilldownModal(p => ({ ...p, isOpen: false }))}
                     className="btn btn-secondary btn-sm"
                     style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem' }}
                   >
@@ -1219,6 +1220,7 @@ const AdminDashboard = () => {
                 {drilldownModal.linkTo && (
                   <Link
                     to={drilldownModal.linkTo}
+                    onClick={() => setDrilldownModal(p => ({ ...p, isOpen: false }))}
                     className="btn btn-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                   >

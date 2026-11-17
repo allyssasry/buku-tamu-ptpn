@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
@@ -17,24 +18,28 @@ import {
   CreditCard,
   User,
   Tag,
-  Clock
+  Clock,
+  RotateCcw,
+  X
 } from 'lucide-react';
 
 const CARD_OPTIONS = Array.from({ length: 50 }, (_, i) => String(i + 1).padStart(3, '0'));
 
 const GuestList = () => {
   const { isAdmin, isPimpinan } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
 
-  // Filters
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
-  const [category, setCategory] = useState('all'); // 'all', 'tamu', 'magang'
-  const [floor, setFloor] = useState('all');
-  const [date, setDate] = useState('');
+  // Filters initialized from URL query params (if any)
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [status, setStatus] = useState(() => searchParams.get('status') || 'all');
+  const [category, setCategory] = useState(() => searchParams.get('category') || 'all'); // 'all', 'tamu', 'magang'
+  const [floor, setFloor] = useState(() => searchParams.get('floor') || 'all');
+  const [date, setDate] = useState(() => searchParams.get('date') || '');
+  const [period, setPeriod] = useState(() => searchParams.get('period') || '');
 
   // Selected Detail Modal
   const [selectedGuest, setSelectedGuest] = useState(null);
@@ -69,6 +74,34 @@ const GuestList = () => {
     fetchActiveCards();
   }, []);
 
+  // Synchronize state when URL query params change
+  useEffect(() => {
+    const qCategory = searchParams.get('category');
+    if (qCategory !== null && qCategory !== category) {
+      setCategory(qCategory);
+    }
+    const qStatus = searchParams.get('status');
+    if (qStatus !== null && qStatus !== status) {
+      setStatus(qStatus);
+    }
+    const qDate = searchParams.get('date');
+    if (qDate !== null && qDate !== date) {
+      setDate(qDate);
+    }
+    const qFloor = searchParams.get('floor');
+    if (qFloor !== null && qFloor !== floor) {
+      setFloor(qFloor);
+    }
+    const qSearch = searchParams.get('search');
+    if (qSearch !== null && qSearch !== search) {
+      setSearch(qSearch);
+    }
+    const qPeriod = searchParams.get('period');
+    if (qPeriod !== null && qPeriod !== period) {
+      setPeriod(qPeriod);
+    }
+  }, [searchParams]);
+
   const fetchGuests = async (page = 1) => {
     try {
       setLoading(true);
@@ -80,6 +113,7 @@ const GuestList = () => {
         category: category !== 'all' ? category : undefined,
         floor: floor !== 'all' ? floor : undefined,
         date: date || undefined,
+        period: period || undefined,
       };
       const res = await api.get('/guests', { params });
       setGuests(res.data.data || []);
@@ -98,7 +132,7 @@ const GuestList = () => {
 
   useEffect(() => {
     fetchGuests(1);
-  }, [search, status, category, floor, date]);
+  }, [search, status, category, floor, date, period]);
 
   const handleViewDetail = async (guestId) => {
     try {
@@ -338,6 +372,115 @@ const GuestList = () => {
           </div>
         </div>
       </div>
+
+      {/* Active Filter Indicator */}
+      {(category !== 'all' || status !== 'all' || floor !== 'all' || date || period || search) && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 10,
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: 8,
+          padding: '8px 14px',
+          marginBottom: 16
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: '0.8125rem' }}>
+            <span style={{ fontWeight: 600, color: '#64748b' }}>Filter Aktif:</span>
+            {category !== 'all' && (
+              <span style={{
+                background: category === 'magang' ? '#faf5ff' : '#f0fdf4',
+                color: category === 'magang' ? '#7e22ce' : '#047857',
+                border: `1px solid ${category === 'magang' ? '#ddd6fe' : '#bbf7d0'}`,
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontWeight: 600
+              }}>
+                {category === 'magang' ? '🎓 Anak Magang / PKL' : '👤 Tamu Umum'}
+              </span>
+            )}
+            {status !== 'all' && (
+              <span style={{
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                border: '1px solid #bfdbfe',
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontWeight: 600
+              }}>
+                Status: {status}
+              </span>
+            )}
+            {date && (
+              <span style={{
+                background: '#fef3c7',
+                color: '#b45309',
+                border: '1px solid #fde68a',
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontWeight: 600
+              }}>
+                Tanggal: {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
+            )}
+            {period === 'this_month' && (
+              <span style={{
+                background: '#f3e8ff',
+                color: '#6b21a8',
+                border: '1px solid #e9d5ff',
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontWeight: 600
+              }}>
+                Periode: Bulan Ini
+              </span>
+            )}
+            {floor !== 'all' && (
+              <span style={{
+                background: '#f1f5f9',
+                color: '#334155',
+                border: '1px solid #cbd5e1',
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontWeight: 600
+              }}>
+                {floor}
+              </span>
+            )}
+            {search && (
+              <span style={{
+                background: '#f1f5f9',
+                color: '#334155',
+                border: '1px solid #cbd5e1',
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontWeight: 600
+              }}>
+                Pencarian: "{search}"
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setStatus('all');
+              setCategory('all');
+              setFloor('all');
+              setDate('');
+              setPeriod('');
+              setSearchParams({});
+            }}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '0.75rem', padding: '3px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            <RotateCcw size={12} />
+            <span>Reset Filter</span>
+          </button>
+        </div>
+      )}
 
       {/* Main Table */}
       <div className="table-container">
