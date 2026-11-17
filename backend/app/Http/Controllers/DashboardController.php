@@ -161,10 +161,25 @@ class DashboardController extends Controller
         $type = $request->input('type');
         $today = Carbon::today();
         $startOfMonth = Carbon::now()->startOfMonth();
+        $baseUrl = $request->getSchemeAndHttpHost() . '/api';
+
+        $guestColumns = [
+            'id', 'name', 'category', 'identity_type', 'institution', 'purpose',
+            'destination_division', 'destination_floor', 'card_number', 'submitted_at',
+            'status', 'check_in_at', 'check_out_at', 'updated_at',
+            DB::raw("CASE WHEN guest_photo IS NOT NULL AND guest_photo != '' THEN 1 ELSE 0 END as has_guest_photo"),
+            DB::raw("CASE WHEN identity_photo IS NOT NULL AND identity_photo != '' THEN 1 ELSE 0 END as has_identity_photo"),
+        ];
+
+        $securityColumns = [
+            'id', 'security_id', 'area_id', 'status', 'description', 'notes', 'checked_at',
+            DB::raw("CASE WHEN photo IS NOT NULL AND photo != '' THEN 1 ELSE 0 END as has_photo"),
+        ];
 
         switch ($type) {
             case 'today_guests':
-                $items = Guest::whereDate('submitted_at', $today)
+                $items = Guest::select($guestColumns)
+                    ->whereDate('submitted_at', $today)
                     ->latest('submitted_at')
                     ->get();
                 $title = 'Tamu Hari Ini';
@@ -174,7 +189,8 @@ class DashboardController extends Controller
                 break;
 
             case 'magang':
-                $items = Guest::where('category', 'magang')
+                $items = Guest::select($guestColumns)
+                    ->where('category', 'magang')
                     ->where('submitted_at', '>=', $startOfMonth)
                     ->latest('submitted_at')
                     ->get();
@@ -185,7 +201,8 @@ class DashboardController extends Controller
                 break;
 
             case 'month_guests':
-                $items = Guest::where('submitted_at', '>=', $startOfMonth)
+                $items = Guest::select($guestColumns)
+                    ->where('submitted_at', '>=', $startOfMonth)
                     ->latest('submitted_at')
                     ->get();
                 $title = 'Tamu Bulan Ini';
@@ -195,7 +212,8 @@ class DashboardController extends Controller
                 break;
 
             case 'currently_in':
-                $items = Guest::where('status', 'Sedang Berkunjung')
+                $items = Guest::select($guestColumns)
+                    ->where('status', 'Sedang Berkunjung')
                     ->latest('check_in_at')
                     ->get();
                 $title = 'Pengunjung Sedang di Gedung';
@@ -222,7 +240,8 @@ class DashboardController extends Controller
                 break;
 
             case 'checks_today':
-                $items = SecurityLog::with(['security', 'area'])
+                $items = SecurityLog::with(['security:id,name', 'area:id,name,floor,building_id', 'area.building:id,name'])
+                    ->select($securityColumns)
                     ->whereDate('checked_at', $today)
                     ->latest('checked_at')
                     ->get();
@@ -243,8 +262,12 @@ class DashboardController extends Controller
                     ->orderBy('floor')
                     ->orderBy('name')
                     ->get()
-                    ->map(function ($area) use ($today) {
-                        $latestLog = SecurityLog::with('security')
+                    ->map(function ($area) use ($today, $baseUrl) {
+                        $latestLog = SecurityLog::with('security:id,name')
+                            ->select([
+                                'id', 'security_id', 'area_id', 'status', 'description', 'notes', 'checked_at',
+                                DB::raw("CASE WHEN photo IS NOT NULL AND photo != '' THEN 1 ELSE 0 END as has_photo")
+                            ])
                             ->where('area_id', $area->id)
                             ->whereDate('checked_at', $today)
                             ->latest('checked_at')
@@ -259,7 +282,7 @@ class DashboardController extends Controller
                             'checked_at' => $latestLog?->checked_at,
                             'security_name' => $latestLog?->security?->name ?? '-',
                             'notes' => $latestLog?->notes ?? $latestLog?->description,
-                            'photo_url' => $latestLog?->photo ? asset('storage/' . $latestLog->photo) : null,
+                            'photo_url' => $latestLog?->has_photo ? "$baseUrl/security-logs/{$latestLog->id}/photo" : null,
                         ];
                     });
                 $title = 'Area Sudah Diperiksa Hari Ini';
@@ -295,7 +318,8 @@ class DashboardController extends Controller
                 break;
 
             case 'all_aman':
-                $items = SecurityLog::with(['security', 'area'])
+                $items = SecurityLog::with(['security:id,name', 'area:id,name,floor,building_id', 'area.building:id,name'])
+                    ->select($securityColumns)
                     ->where('status', 'Aman')
                     ->latest('checked_at')
                     ->take(50)
@@ -307,7 +331,8 @@ class DashboardController extends Controller
                 break;
 
             case 'perlu_perhatian':
-                $items = SecurityLog::with(['security', 'area'])
+                $items = SecurityLog::with(['security:id,name', 'area:id,name,floor,building_id', 'area.building:id,name'])
+                    ->select($securityColumns)
                     ->where('status', 'Perlu Perhatian')
                     ->latest('checked_at')
                     ->get();
@@ -318,7 +343,8 @@ class DashboardController extends Controller
                 break;
 
             case 'insiden':
-                $items = SecurityLog::with(['security', 'area'])
+                $items = SecurityLog::with(['security:id,name', 'area:id,name,floor,building_id', 'area.building:id,name'])
+                    ->select($securityColumns)
                     ->where('status', 'Insiden')
                     ->latest('checked_at')
                     ->get();
@@ -333,17 +359,14 @@ class DashboardController extends Controller
         }
 
         if ($category === 'guest') {
-            $items->transform(function ($g) {
-                $g->identity_photo_url = FileStorageService::formatUrl($g->identity_photo);
-                $g->guest_photo_url = FileStorageService::formatUrl($g->guest_photo);
-                unset($g->identity_photo);
-                unset($g->guest_photo);
+            $items->transform(function ($g) use ($baseUrl) {
+                $g->guest_photo_url = $g->has_guest_photo ? "$baseUrl/guests/{$g->id}/photo" : null;
+                $g->identity_photo_url = $g->has_identity_photo ? "$baseUrl/guests/{$g->id}/identity-photo" : null;
                 return $g;
             });
         } elseif ($category === 'security') {
-            $items->transform(function ($l) {
-                $l->photo_url = FileStorageService::formatUrl($l->photo);
-                unset($l->photo);
+            $items->transform(function ($l) use ($baseUrl) {
+                $l->photo_url = $l->has_photo ? "$baseUrl/security-logs/{$l->id}/photo" : null;
                 return $l;
             });
         }
@@ -354,6 +377,7 @@ class DashboardController extends Controller
             'subtitle' => $subtitle,
             'category' => $category,
             'link_to' => $linkTo,
+            'linkTo' => $linkTo,
             'total' => count($items),
             'items' => $items,
         ]);

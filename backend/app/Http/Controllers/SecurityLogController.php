@@ -77,6 +77,7 @@ class SecurityLogController extends Controller
 
         $logs->getCollection()->transform(function ($log) {
             $log->photo_url = FileStorageService::formatUrl($log->photo);
+            unset($log->photo);
             return $log;
         });
 
@@ -140,7 +141,35 @@ class SecurityLogController extends Controller
     {
         $log = SecurityLog::with(['security', 'area.building'])->findOrFail($id);
         $log->photo_url = FileStorageService::formatUrl($log->photo);
+        unset($log->photo);
 
         return response()->json($log);
+    }
+
+    public function photo($id)
+    {
+        $log = SecurityLog::select(['id', 'photo'])->find($id);
+        if (!$log || empty($log->photo)) {
+            return response('', 404);
+        }
+
+        if (str_starts_with($log->photo, 'data:image')) {
+            @list($meta, $content) = explode(',', $log->photo, 2);
+            $mime = 'image/jpeg';
+            if (preg_match('/data:(image\/[a-zA-Z0-9.+_-]+);base64/', $meta, $matches)) {
+                $mime = $matches[1];
+            }
+            $binary = base64_decode($content);
+            return response($binary, 200, [
+                'Content-Type' => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($log->photo)) {
+            return \Illuminate\Support\Facades\Storage::disk('public')->response($log->photo);
+        }
+
+        return redirect($log->photo);
     }
 }

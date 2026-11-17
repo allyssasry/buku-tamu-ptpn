@@ -558,4 +558,46 @@ class GuestController extends Controller
             'guest' => $guest->fresh(['identityDeposits']),
         ]);
     }
+
+    public function photo($id)
+    {
+        $guest = Guest::select(['id', 'guest_photo'])->find($id);
+        if (!$guest || empty($guest->guest_photo)) {
+            return response('', 404);
+        }
+
+        return $this->streamPhoto($guest->guest_photo);
+    }
+
+    public function identityPhoto($id)
+    {
+        $guest = Guest::select(['id', 'identity_photo'])->find($id);
+        if (!$guest || empty($guest->identity_photo)) {
+            return response('', 404);
+        }
+
+        return $this->streamPhoto($guest->identity_photo);
+    }
+
+    private function streamPhoto(string $photoData)
+    {
+        if (str_starts_with($photoData, 'data:image')) {
+            @list($meta, $content) = explode(',', $photoData, 2);
+            $mime = 'image/jpeg';
+            if (preg_match('/data:(image\/[a-zA-Z0-9.+_-]+);base64/', $meta, $matches)) {
+                $mime = $matches[1];
+            }
+            $binary = base64_decode($content);
+            return response($binary, 200, [
+                'Content-Type' => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($photoData)) {
+            return \Illuminate\Support\Facades\Storage::disk('public')->response($photoData);
+        }
+
+        return redirect($photoData);
+    }
 }

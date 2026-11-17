@@ -98,7 +98,7 @@ const AdminDashboard = () => {
     });
 
     try {
-      const res = await api.get('/dashboard/drilldown', { params: { type } });
+      const res = await api.get('/dashboard/drilldown', { params: { type }, timeout: 30000 });
       setDrilldownModal({
         isOpen: true,
         loading: false,
@@ -106,7 +106,7 @@ const AdminDashboard = () => {
         title: res.data.title,
         subtitle: res.data.subtitle,
         category: res.data.category,
-        linkTo: res.data.link_to,
+        linkTo: res.data.link_to || res.data.linkTo || '',
         items: res.data.items || [],
         searchQuery: '',
       });
@@ -116,7 +116,9 @@ const AdminDashboard = () => {
         ...prev,
         loading: false,
         title: 'Gagal Memuat Data',
-        subtitle: 'Terjadi kendala saat mengambil rincian data. Silakan coba kembali.',
+        subtitle: err.code === 'ECONNABORTED'
+          ? 'Koneksi ke server melebihi batas waktu (timeout). Silakan coba kembali.'
+          : (err.response?.data?.message || 'Terjadi kendala saat mengambil rincian data. Silakan coba kembali.'),
       }));
     }
   };
@@ -1197,6 +1199,16 @@ const AdminDashboard = () => {
                 💡 Klik foto untuk melihat dokumen identitas atau foto patroli dalam ukuran besar.
               </span>
               <div style={{ display: 'flex', gap: 10 }}>
+                {drilldownModal.title === 'Gagal Memuat Data' && (
+                  <button
+                    type="button"
+                    onClick={() => handleCardClick(drilldownModal.type)}
+                    className="btn btn-secondary"
+                    style={{ borderColor: '#fca5a5', color: '#dc2626' }}
+                  >
+                    Coba Lagi
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setDrilldownModal(p => ({ ...p, isOpen: false }))}

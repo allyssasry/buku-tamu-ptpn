@@ -20,6 +20,9 @@ Route::post('/guests', [GuestController::class, 'store']); // Public guest regis
 Route::get('/areas', [AreaController::class, 'index']); // Public so guest form can load available floors
 Route::get('/buildings', [BuildingController::class, 'index']); // Public list of buildings
 Route::get('/active-cards', [GuestController::class, 'activeCards']); // Public list of currently occupied access cards
+Route::get('/guests/{id}/photo', [GuestController::class, 'photo']);
+Route::get('/guests/{id}/identity-photo', [GuestController::class, 'identityPhoto']);
+Route::get('/security-logs/{id}/photo', [SecurityLogController::class, 'photo']);
 
 // Protected Endpoints via Sanctum
 Route::middleware('auth:sanctum')->group(function () {
