@@ -50,17 +50,18 @@ class GuestAutoCheckinTest extends TestCase
 
         $verifyRes = $this->actingAs($security)
             ->postJson("/api/guests/{$guest->id}/verify", [
-                'status' => 'Terverifikasi',
+                'status' => 'Sedang Berkunjung',
                 'destination_floor' => 'Lantai 11',
                 'deposit_id' => true,
             ]);
 
         $verifyRes->assertStatus(200);
         $guest->refresh();
-        $this->assertEquals('Terverifikasi', $guest->status);
+        $this->assertEquals('Sedang Berkunjung', $guest->status);
         $this->assertEquals('Lantai 11', $guest->destination_floor);
         $this->assertEquals('001', $guest->card_number);
         $this->assertNotNull($guest->verified_at);
+        $this->assertNotNull($guest->check_in_at);
         $this->assertEquals($security->id, $guest->verified_by);
     }
 

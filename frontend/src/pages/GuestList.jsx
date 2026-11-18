@@ -157,8 +157,8 @@ const GuestList = () => {
         isOpen: true,
         type: 'verify',
         guest,
-        title: `Verifikasi ${labelUser}: ${guest.name}`,
-        message: `Verifikasi kedatangan ${labelUser.toLowerCase()} ${guest.name} dari ${guest.institution}. Petugas security lantai 11 memvalidasi lantai tujuan dan menyerahkan nomor kartu akses fisik.`,
+        title: `Verifikasi & Check-In ${labelUser}: ${guest.name}`,
+        message: `Verifikasi kedatangan dan otomatis check-in ${labelUser.toLowerCase()} ${guest.name} dari ${guest.institution} (status langsung menjadi Sedang Berkunjung). Petugas security lantai 11 memvalidasi lantai tujuan dan menyerahkan nomor kartu akses fisik.`,
         notes: 'Disimpan di loker security.',
         depositId: true,
         cardNumber: autoCard,
@@ -211,7 +211,7 @@ const GuestList = () => {
     try {
       if (type === 'verify') {
         await api.post(`/guests/${guest.id}/verify`, {
-          status: 'Terverifikasi',
+          status: 'Sedang Berkunjung',
           deposit_id: depositId,
           deposit_notes: notes,
           card_number: cardNumber || undefined,
@@ -654,18 +654,7 @@ const GuestList = () => {
                         </button>
                       )}
 
-                      {!isPimpinan && g.status === 'Terverifikasi' && (
-                        <button
-                          onClick={() => handleOpenAction('checkin', g)}
-                          className="btn btn-primary btn-sm"
-                          style={{ padding: '5px 10px', fontSize: '0.75rem' }}
-                        >
-                          <LogIn size={13} />
-                          <span>Check-In</span>
-                        </button>
-                      )}
-
-                      {!isPimpinan && g.status === 'Sedang Berkunjung' && (
+                      {!isPimpinan && (g.status === 'Sedang Berkunjung' || g.status === 'Terverifikasi') && (
                         <button
                           onClick={() => handleOpenAction('checkout', g)}
                           className="btn btn-secondary btn-sm"
@@ -888,21 +877,11 @@ const GuestList = () => {
                   className="btn btn-success"
                 >
                   <CheckCircle size={16} />
-                  <span>Verifikasi Tamu</span>
+                  <span>Verifikasi & Check-In</span>
                 </button>
               )}
 
-              {!isPimpinan && selectedGuest.status === 'Terverifikasi' && (
-                <button
-                  onClick={() => { setSelectedGuest(null); handleOpenAction('checkin', selectedGuest); }}
-                  className="btn btn-primary"
-                >
-                  <LogIn size={16} />
-                  <span>Check-In Masuk</span>
-                </button>
-              )}
-
-              {!isPimpinan && selectedGuest.status === 'Sedang Berkunjung' && (
+              {!isPimpinan && (selectedGuest.status === 'Sedang Berkunjung' || selectedGuest.status === 'Terverifikasi') && (
                 <button
                   onClick={() => { setSelectedGuest(null); handleOpenAction('checkout', selectedGuest); }}
                   className="btn btn-secondary"
@@ -945,7 +924,7 @@ const GuestList = () => {
                     onChange={(e) => setActionConfirm(p => ({ ...p, destinationFloor: e.target.value }))}
                     style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}
                   >
-                    <option value="Lantai 11">Lantai 11 (Security Meja Resepsionis)</option>
+                    <option value="Lantai 11">Lantai 11</option>
                     <option value="Lantai 15">Lantai 15</option>
                     <option value="Lantai 1">Lantai 1</option>
                     <option value="Lantai 2">Lantai 2</option>

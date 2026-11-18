@@ -128,6 +128,13 @@ class GuestController extends Controller
 
     public function index(Request $request)
     {
+        // Auto-heal legacy 'Terverifikasi' status to 'Sedang Berkunjung'
+        // since verification by security now directly checks the visitor in
+        Guest::where('status', 'Terverifikasi')->update([
+            'status' => 'Sedang Berkunjung',
+            'check_in_at' => DB::raw('COALESCE(check_in_at, verified_at, NOW())')
+        ]);
+
         $query = Guest::with(['activeDeposit', 'verifiedBy', 'checkedOutBy'])->latest('submitted_at');
 
         // Filter: Date
@@ -478,11 +485,13 @@ class GuestController extends Controller
     {
         $guest = Guest::findOrFail($id);
         $user = $request->user();
+        $now = Carbon::now();
 
         $updateData = [
-            'status' => $request->input('status', 'Terverifikasi'),
-            'verified_at' => Carbon::now(),
+            'status' => 'Sedang Berkunjung', // Jika sudah diverifikasi oleh security berarti langsung Check-In (Sedang Berkunjung)
+            'verified_at' => $now,
             'verified_by' => $user->id,
+            'check_in_at' => $guest->check_in_at ?? $now,
         ];
 
         if ($request->filled('destination_floor')) {
@@ -544,11 +553,11 @@ class GuestController extends Controller
             $user->id,
             'VERIFY_GUEST',
             'GUEST',
-            "Security {$user->name} memverifikasi {$guest->name} ({$guest->institution})." . ($guest->card_number ? " [No. Kartu: {$guest->card_number}]" : "")
+            "Security {$user->name} memverifikasi & check-in {$guest->name} ({$guest->institution})." . ($guest->card_number ? " [No. Kartu: {$guest->card_number}]" : "")
         );
 
         return response()->json([
-            'message' => 'Tamu berhasil diverifikasi oleh security.',
+            'message' => 'Tamu berhasil diverifikasi dan resmi check-in (Sedang Berkunjung).',
             'guest' => $guest->fresh(['activeDeposit', 'verifiedBy']),
         ]);
     }
