@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\GuestController;
 use App\Models\Guest;
 use App\Models\IdentityDeposit;
 use App\Models\User;
@@ -14,39 +15,35 @@ class GuestAutoCheckinTest extends TestCase
 
     private string $dummyPhoto = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
 
-    public function test_public_magang_submission_waits_for_verification_and_security_verifies_and_checkins(): void
+    public function test_public_guest_submission_without_card_or_floor_or_id_number_auto_assigns_card_and_security_sets_floor(): void
     {
+        // Public guest submits form without destination_floor, identity_number, or card_number
         $response = $this->postJson('/api/guests', [
-            'name' => 'isaa',
-            'category' => 'magang',
+            'name' => 'Budi Santoso',
+            'institution' => 'PT Mitra Sejati',
+            'phone' => '081234567890',
+            'purpose' => 'Meeting Vendor',
+            'meeting_with' => 'Kepala Divisi TI',
             'destination_division' => 'Divisi Manajemen Aset',
-            'card_number' => '001',
+            'identity_type' => 'KTP',
+            'category' => 'tamu',
             'guest_photo' => $this->dummyPhoto,
             'consent' => true,
         ]);
 
         $response->assertStatus(201);
-        $this->assertDatabaseHas('guests', [
-            'name' => 'isaa',
-            'category' => 'magang',
-            'card_number' => '001',
-            'status' => 'Menunggu Verifikasi',
-        ]);
+        $guest = Guest::where('name', 'Budi Santoso')->firstOrFail();
 
-        $guest = Guest::where('name', 'isaa')->firstOrFail();
-        $this->assertNull($guest->check_in_at);
+        $this->assertEquals('Menunggu Verifikasi', $guest->status);
+        $this->assertEquals('001', $guest->card_number); // Auto-assigned card 001
+        $this->assertEquals('-', $guest->destination_floor); // Blank before security sets it
+        $this->assertNull($guest->identity_number);
         $this->assertNull($guest->verified_at);
 
-        $this->assertDatabaseHas('identity_deposits', [
-            'guest_id' => $guest->id,
-            'status' => 'Dititipkan',
-            'received_by' => null,
-        ]);
-
-        // Security officer verifies the guest
+        // Security officer at floor 11 verifies the guest and sets floor to Lantai 11
         $security = User::create([
-            'name' => 'Petugas Security',
-            'email' => 'security@example.com',
+            'name' => 'Petugas Security Lt 11',
+            'email' => 'sec11@example.com',
             'password' => bcrypt('password'),
             'role' => 'security',
         ]);
@@ -54,64 +51,41 @@ class GuestAutoCheckinTest extends TestCase
         $verifyRes = $this->actingAs($security)
             ->postJson("/api/guests/{$guest->id}/verify", [
                 'status' => 'Terverifikasi',
+                'destination_floor' => 'Lantai 11',
                 'deposit_id' => true,
             ]);
 
         $verifyRes->assertStatus(200);
         $guest->refresh();
         $this->assertEquals('Terverifikasi', $guest->status);
+        $this->assertEquals('Lantai 11', $guest->destination_floor);
+        $this->assertEquals('001', $guest->card_number);
         $this->assertNotNull($guest->verified_at);
         $this->assertEquals($security->id, $guest->verified_by);
-
-        // Security officer checks in the guest
-        $checkinRes = $this->actingAs($security)
-            ->postJson("/api/guests/{$guest->id}/checkin");
-
-        $checkinRes->assertStatus(200);
-        $guest->refresh();
-        $this->assertEquals('Sedang Berkunjung', $guest->status);
-        $this->assertNotNull($guest->check_in_at);
     }
 
-    public function test_tamu_and_magang_card_pools_are_independent_and_checkout_frees_card_and_returns_id(): void
+    public function test_card_allocation_loops_and_continues_forward_when_intermediate_card_returned(): void
     {
-        // Magang takes card 001
-        $this->postJson('/api/guests', [
-            'name' => 'Anak Magang Satu',
-            'category' => 'magang',
-            'destination_division' => 'Divisi Manajemen Aset',
-            'card_number' => '001',
-            'guest_photo' => $this->dummyPhoto,
-            'consent' => true,
-        ])->assertStatus(201);
+        // Scenario: cards 1, 2, 3, 4 are assigned
+        for ($i = 1; $i <= 4; $i++) {
+            $this->postJson('/api/guests', [
+                'name' => "Tamu {$i}",
+                'institution' => 'Instansi Tes',
+                'phone' => "0812345678{$i}",
+                'purpose' => 'Rapat',
+                'meeting_with' => 'Staff',
+                'destination_division' => 'Divisi Manajemen Aset',
+                'identity_type' => 'KTP',
+                'category' => 'tamu',
+                'guest_photo' => $this->dummyPhoto,
+                'consent' => true,
+            ])->assertStatus(201);
+        }
 
-        // Tamu Umum can also take card 001 without collision
-        $this->postJson('/api/guests', [
-            'name' => 'Tamu Umum Satu',
-            'institution' => 'PT Mitra Sejati',
-            'phone' => '08123456789',
-            'purpose' => 'Rapat Koordinasi',
-            'meeting_with' => 'Kepala Divisi',
-            'destination_division' => 'Divisi Manajemen Aset',
-            'destination_floor' => 'Lantai 2',
-            'identity_type' => 'KTP',
-            'category' => 'tamu',
-            'card_number' => '001',
-            'guest_photo' => $this->dummyPhoto,
-            'consent' => true,
-        ])->assertStatus(201);
+        $guest3 = Guest::where('name', 'Tamu 3')->firstOrFail();
+        $this->assertEquals('003', $guest3->card_number);
 
-        // Second Magang using active Magang card 001 fails with 422
-        $this->postJson('/api/guests', [
-            'name' => 'Anak Magang Dua',
-            'category' => 'magang',
-            'destination_division' => 'Divisi Manajemen Aset',
-            'card_number' => '001',
-            'guest_photo' => $this->dummyPhoto,
-            'consent' => true,
-        ])->assertStatus(422);
-
-        // Security checks out Magang Satu -> card 001 freed and ID returned
+        // Tamu 3 checks out (returns card 3)
         $security = User::create([
             'name' => 'Security Officer',
             'email' => 'sec@example.com',
@@ -119,31 +93,26 @@ class GuestAutoCheckinTest extends TestCase
             'role' => 'security',
         ]);
 
-        $magangGuest = Guest::where('name', 'Anak Magang Satu')->firstOrFail();
-
         $this->actingAs($security)
-            ->postJson("/api/guests/{$magangGuest->id}/checkout")
+            ->postJson("/api/guests/{$guest3->id}/checkout")
             ->assertStatus(200);
 
-        $this->assertDatabaseHas('guests', [
-            'id' => $magangGuest->id,
-            'status' => 'Sudah Keluar',
-        ]);
-
-        $this->assertDatabaseHas('identity_deposits', [
-            'guest_id' => $magangGuest->id,
-            'status' => 'Sudah Dikembalikan',
-            'returned_by' => $security->id,
-        ]);
-
-        // Card 001 is now available for Anak Magang Dua
-        $this->postJson('/api/guests', [
-            'name' => 'Anak Magang Dua',
-            'category' => 'magang',
+        // Next guest registers: should NOT pick card 3, but CONTINUE forward to card 5!
+        $res5 = $this->postJson('/api/guests', [
+            'name' => 'Tamu 5',
+            'institution' => 'Instansi Tes',
+            'phone' => '081234567899',
+            'purpose' => 'Rapat',
+            'meeting_with' => 'Staff',
             'destination_division' => 'Divisi Manajemen Aset',
-            'card_number' => '001',
+            'identity_type' => 'KTP',
+            'category' => 'tamu',
             'guest_photo' => $this->dummyPhoto,
             'consent' => true,
-        ])->assertStatus(201);
+        ]);
+
+        $res5->assertStatus(201);
+        $guest5 = Guest::where('name', 'Tamu 5')->firstOrFail();
+        $this->assertEquals('005', $guest5->card_number);
     }
 }

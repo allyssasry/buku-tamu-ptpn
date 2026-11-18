@@ -20,7 +20,8 @@ import {
   Tag,
   Clock,
   RotateCcw,
-  X
+  X,
+  Building2
 } from 'lucide-react';
 
 const CARD_OPTIONS = Array.from({ length: 50 }, (_, i) => String(i + 1).padStart(3, '0'));
@@ -55,6 +56,7 @@ const GuestList = () => {
     notes: '',
     depositId: true,
     cardNumber: '',
+    destinationFloor: 'Lantai 11',
   });
   const [actionLoading, setActionLoading] = useState(false);
   const [editingCard, setEditingCard] = useState({ isEditing: false, cardNumber: '' });
@@ -170,6 +172,10 @@ const GuestList = () => {
   const handleOpenAction = (type, guest) => {
     const isMagang = guest.category === 'magang';
     const labelUser = isMagang ? 'Anak Magang' : 'Tamu';
+    const defaultFloor = guest.destination_floor && guest.destination_floor !== '-'
+      ? guest.destination_floor
+      : (isMagang ? 'Lantai Penempatan' : 'Lantai 11');
+    const autoCard = guest.card_number || (isMagang ? activeCardsData.magang?.next_card : activeCardsData.tamu?.next_card) || '';
 
     if (type === 'verify') {
       setActionConfirm({
@@ -177,10 +183,11 @@ const GuestList = () => {
         type: 'verify',
         guest,
         title: `Verifikasi ${labelUser}: ${guest.name}`,
-        message: `Apakah Anda yakin ingin memverifikasi kedatangan ${labelUser.toLowerCase()} ${guest.name} dari ${guest.institution}?`,
+        message: `Verifikasi kedatangan ${labelUser.toLowerCase()} ${guest.name} dari ${guest.institution}. Petugas security lantai 11 memvalidasi lantai tujuan dan menyerahkan nomor kartu akses fisik.`,
         notes: 'Disimpan di loker security.',
         depositId: true,
-        cardNumber: guest.card_number || '',
+        cardNumber: autoCard,
+        destinationFloor: defaultFloor,
       });
     } else if (type === 'checkin') {
       setActionConfirm({
@@ -191,7 +198,8 @@ const GuestList = () => {
         message: `Tandai ${labelUser.toLowerCase()} sebagai "Sedang Berkunjung" di area gedung?`,
         notes: 'Disimpan di loker security.',
         depositId: true,
-        cardNumber: guest.card_number || '',
+        cardNumber: autoCard,
+        destinationFloor: defaultFloor,
       });
     } else if (type === 'checkout') {
       setActionConfirm({
@@ -203,6 +211,7 @@ const GuestList = () => {
         notes: '',
         depositId: false,
         cardNumber: guest.card_number || '',
+        destinationFloor: defaultFloor,
       });
     } else if (type === 'delete') {
       setActionConfirm({
@@ -214,12 +223,13 @@ const GuestList = () => {
         notes: '',
         depositId: false,
         cardNumber: guest.card_number || '',
+        destinationFloor: defaultFloor,
       });
     }
   };
 
   const handleConfirmAction = async () => {
-    const { type, guest, depositId, notes, cardNumber } = actionConfirm;
+    const { type, guest, depositId, notes, cardNumber, destinationFloor } = actionConfirm;
     if (!guest) return;
     setActionLoading(true);
 
@@ -230,12 +240,14 @@ const GuestList = () => {
           deposit_id: depositId,
           deposit_notes: notes,
           card_number: cardNumber || undefined,
+          destination_floor: destinationFloor || undefined,
         });
       } else if (type === 'checkin') {
         await api.post(`/guests/${guest.id}/checkin`, {
           deposit_id: depositId,
           deposit_notes: notes,
           card_number: cardNumber || undefined,
+          destination_floor: destinationFloor || undefined,
         });
       } else if (type === 'checkout') {
         await api.post(`/guests/${guest.id}/checkout`);
@@ -243,7 +255,7 @@ const GuestList = () => {
         await api.delete(`/guests/${guest.id}`);
       }
 
-      setActionConfirm({ isOpen: false, type: '', guest: null, title: '', message: '', cardNumber: '' });
+      setActionConfirm({ isOpen: false, type: '', guest: null, title: '', message: '', cardNumber: '', destinationFloor: 'Lantai 11' });
       if (selectedGuest && selectedGuest.id === guest.id) {
         handleViewDetail(guest.id);
       }
@@ -1004,10 +1016,45 @@ const GuestList = () => {
             <p style={{ marginBottom: 14 }}>{actionConfirm.message}</p>
             {(actionConfirm.type === 'verify' || actionConfirm.type === 'checkin') && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* 1. Input / Validasi Lantai Tujuan oleh Security Lantai 11 */}
+                <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: 12, borderRadius: 8 }}>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#0369a1' }}>
+                      <Building2 size={16} style={{ color: '#0284c7' }} />
+                      <span>Lantai Tujuan:</span>
+                    </span>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 4 }}>
+                      Petugas Security Lt. 11
+                    </span>
+                  </label>
+                  <select
+                    className="form-select"
+                    value={actionConfirm.destinationFloor || 'Lantai 11'}
+                    onChange={(e) => setActionConfirm(p => ({ ...p, destinationFloor: e.target.value }))}
+                    style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}
+                  >
+                    <option value="Lantai 11">Lantai 11 (Security Meja Resepsionis)</option>
+                    <option value="Lantai 15">Lantai 15</option>
+                    <option value="Lantai 1">Lantai 1</option>
+                    <option value="Lantai 2">Lantai 2</option>
+                    <option value="Lantai 3">Lantai 3</option>
+                    <option value="Lantai Penempatan">Lantai Penempatan (Khusus Magang)</option>
+                  </select>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
+                    *Security lantai 11 yang memasukkan lantai tujuan dan memberikan kartu akses.
+                  </span>
+                </div>
+
+                {/* 2. Nomor Kartu Akses Fisik (Otomatis Looping 001 - 050) */}
                 <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: 12, borderRadius: 8 }}>
-                  <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e40af', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <CreditCard size={15} />
-                    <span>No. Kartu Akses Fisik (001 - 050):</span>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e40af', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <CreditCard size={15} />
+                      <span>No. Kartu Akses Fisik (001 - 050):</span>
+                    </span>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 4 }}>
+                      Otomatis Looping
+                    </span>
                   </label>
                   <select
                     className="form-select"
@@ -1027,6 +1074,7 @@ const GuestList = () => {
                       const isOccupied = occupiedList.includes(num) && actionConfirm.guest?.card_number !== num;
                       const occupant = detailsList[num];
                       const cardPrefix = isMagang ? 'Kartu Magang' : 'Kartu Tamu';
+                      const isSelected = actionConfirm.cardNumber === num;
                       return (
                         <option
                           key={num}
@@ -1034,7 +1082,7 @@ const GuestList = () => {
                           disabled={isOccupied}
                           style={isOccupied ? { color: '#94a3b8', background: '#f1f5f9' } : { color: '#0f172a' }}
                         >
-                          {cardPrefix} {num} {isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Tamu'})` : ''}
+                          {cardPrefix} {num} {isSelected ? '✓ (Nomor Terpilih Otomatis)' : isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Tamu'})` : ''}
                         </option>
                       );
                     })}
@@ -1043,7 +1091,7 @@ const GuestList = () => {
                     )}
                   </select>
                   <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
-                    *Pilih nomor kartu fisik (001 s.d. 050) yang diserahkan ke tamu saat verifikasi/check-in.
+                    *Nomor kartu terisi otomatis secara berurutan (ngeloop 001 - 050). Petugas security dapat menyesuaikan jika diperlukan.
                   </span>
                 </div>
 

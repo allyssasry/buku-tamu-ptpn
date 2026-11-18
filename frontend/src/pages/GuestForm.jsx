@@ -4,8 +4,6 @@ import api from '../api/client';
 import CameraCapture from '../components/CameraCapture';
 import { Shield, Building2, User, FileText, Send, AlertCircle, ArrowLeft, GraduationCap, CreditCard, Tag, Camera } from 'lucide-react';
 
-const CARD_OPTIONS = Array.from({ length: 50 }, (_, i) => String(i + 1).padStart(3, '0'));
-
 const GuestForm = () => {
   const navigate = useNavigate();
 
@@ -33,20 +31,6 @@ const GuestForm = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeCardsData, setActiveCardsData] = useState({ occupied: [], details: {} });
-
-  const fetchActiveCards = async () => {
-    try {
-      const res = await api.get('/active-cards');
-      setActiveCardsData(res.data || { occupied: [], details: {} });
-    } catch (err) {
-      console.error('Gagal mengambil status kartu akses:', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchActiveCards();
-  }, []);
 
   const handleChange = (field, val) => {
     setFormData(prev => ({
@@ -85,22 +69,8 @@ const GuestForm = () => {
       if (!formData.purpose.trim()) return setError('Keperluan kunjungan wajib diisi.');
       if (!formData.meeting_with.trim()) return setError('Bertemu dengan wajib diisi.');
       if (!formData.destination_division.trim()) return setError('Direksi / Divisi / Unit yang dituju wajib dipilih.');
-      if (!formData.destination_floor.trim()) return setError('Lantai tujuan wajib dipilih.');
-      if (formData.identity_number.trim() && !/^\d+$/.test(formData.identity_number.trim())) {
-        return setError('Nomor identitas / NIK hanya boleh berisi angka.');
-      }
       if (!formData.guest_photo) return setError('Foto diri tamu wajib diambil atau diunggah.');
       if (!formData.consent) return setError('Persetujuan penggunaan data wajib dicentang.');
-    }
-
-    const activeCatData = isMagang
-      ? (activeCardsData.magang || { occupied: [], details: {} })
-      : (activeCardsData.tamu || { occupied: activeCardsData.occupied || [], details: activeCardsData.details || {} });
-
-    if (formData.card_number && activeCatData.occupied?.includes(formData.card_number)) {
-      const occupant = activeCatData.details?.[formData.card_number];
-      const cardType = isMagang ? 'Kartu Magang' : 'Kartu Tamu';
-      return setError(`Nomor ${cardType} ${formData.card_number} sedang digunakan oleh ${occupant?.name || 'peserta lain'} (${occupant?.institution || ''}) dan belum dikembalikan.`);
     }
 
     setLoading(true);
@@ -110,9 +80,16 @@ const GuestForm = () => {
       institution: formData.institution.trim() || 'Siswa / Mahasiswa Magang',
       purpose: formData.purpose.trim() || 'Kegiatan Magang / PKL',
       meeting_with: formData.meeting_with.trim() || `Pembimbing ${formData.destination_division}`,
-      destination_floor: formData.destination_floor.trim() || 'Lantai Penempatan',
+      destination_floor: 'Lantai Penempatan',
       identity_type: 'ID Card',
-    } : formData;
+      identity_number: null,
+      card_number: null,
+    } : {
+      ...formData,
+      destination_floor: '-',
+      identity_number: null,
+      card_number: null,
+    };
 
     try {
       const res = await api.post('/guests', payload, { timeout: 30000 });
@@ -373,73 +350,36 @@ const GuestForm = () => {
                   </select>
                 </div>
 
-                {/* 3. Pilihan Kartu Akses Magang (001 - 050) */}
-                <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#7e22ce' }}>
-                      <GraduationCap size={18} style={{ color: '#7e22ce' }} />
-                      <span>No. Kartu Akses Magang / Visitor Badge (001 - 050)</span>
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: '#7e22ce', fontWeight: 600, background: '#faf5ff', border: '1px solid #d8b4fe', padding: '2px 8px', borderRadius: 4 }}>
-                      Kartu Magang (Opsional)
-                    </span>
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      className="form-select"
-                      style={{
-                        paddingLeft: 40,
-                        borderColor: formData.card_number ? '#a855f7' : '#d8b4fe',
-                        background: formData.card_number ? '#faf5ff' : '#ffffff',
-                        fontWeight: 600,
-                        fontSize: '0.9375rem',
-                        cursor: 'pointer'
-                      }}
-                      value={formData.card_number}
-                      onChange={(e) => handleChange('card_number', e.target.value)}
-                    >
-                      <option value="">-- Pilih No. Kartu Magang (001 - 050) / Kosongkan --</option>
-                      {CARD_OPTIONS.map((num) => {
-                        const magangOccupied = activeCardsData.magang?.occupied || [];
-                        const isOccupied = magangOccupied.includes(num);
-                        const occupant = activeCardsData.magang?.details?.[num];
-                        return (
-                          <option
-                            key={num}
-                            value={num}
-                            disabled={isOccupied}
-                            style={isOccupied ? { color: '#94a3b8', background: '#f1f5f9' } : { color: '#0f172a' }}
-                          >
-                            Kartu Magang {num} {isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Peserta'})` : ' (Tersedia)'}
-                          </option>
-                        );
-                      })}
-                    </select>
-                    <GraduationCap
-                      size={18}
-                      style={{
-                        position: 'absolute',
-                        left: 12,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: formData.card_number ? '#7e22ce' : '#94a3b8',
-                        pointerEvents: 'none'
-                      }}
-                    />
+                {/* Informasi Kartu Akses Magang Otomatis */}
+                <div style={{
+                  gridColumn: 'span 2',
+                  background: '#faf5ff',
+                  border: '1px solid #d8b4fe',
+                  padding: '14px 16px',
+                  borderRadius: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12
+                }}>
+                  <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    background: '#f3e8ff',
+                    color: '#7e22ce',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <GraduationCap size={20} />
                   </div>
-                  {(() => {
-                    const occupiedList = activeCardsData.magang?.occupied || [];
-                    const occupiedCount = CARD_OPTIONS.filter(num => occupiedList.includes(num)).length;
-                    const availableCount = CARD_OPTIONS.length - occupiedCount;
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginTop: 6, fontSize: '0.75rem', color: '#64748b' }}>
-                        <span>Nomor kartu fisik magang khusus anak magang (001 - 050). Terpisah dari kartu tamu umum.</span>
-                        <span style={{ fontWeight: 600, color: availableCount === 50 ? '#059669' : availableCount > 0 ? '#7e22ce' : '#dc2626' }}>
-                          ✓ Tersedia {availableCount} / 50 Kartu Magang
-                        </span>
-                      </div>
-                    );
-                  })()}
+                  <div style={{ fontSize: '0.8125rem', color: '#6b21a8', lineHeight: 1.5 }}>
+                    <div style={{ fontWeight: 700, color: '#581c87', marginBottom: 2 }}>
+                      Penyerahan Kartu Akses Magang oleh Petugas Security (Lantai 11)
+                    </div>
+                    Nomor kartu akses fisik magang (001 - 050) akan diberikan otomatis secara berurutan dan diserahkan oleh petugas security saat verifikasi kedatangan di lantai 11.
+                  </div>
                 </div>
               </div>
 
@@ -582,20 +522,6 @@ const GuestForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Lantai Tujuan <span className="required">*</span></label>
-                    <select
-                      className="form-select"
-                      value={formData.destination_floor}
-                      onChange={(e) => handleChange('destination_floor', e.target.value)}
-                      required
-                    >
-                      <option value="">-- Pilih Lantai --</option>
-                      <option value="Lantai 11">Lantai 11</option>
-                      <option value="Lantai 15">Lantai 15</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
                     <label className="form-label">Catatan Tambahan (Opsional)</label>
                     <input
                       type="text"
@@ -618,8 +544,8 @@ const GuestForm = () => {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                  <div className="form-group">
-                    <label className="form-label">Jenis Identitas <span className="required">*</span></label>
+                  <div className="form-group" style={{ gridColumn: 'span 1' }}>
+                    <label className="form-label">Jenis Identitas yang Dititipkan ke Security <span className="required">*</span></label>
                     <select
                       className="form-select"
                       value={formData.identity_type}
@@ -634,90 +560,36 @@ const GuestForm = () => {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">
-                      Nomor Identitas <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>(Opsional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      className="form-input"
-                      placeholder="Nomor NIK KTP / SIM / Passport (Hanya Angka, opsional)"
-                      value={formData.identity_number}
-                      onChange={(e) => handleChange('identity_number', e.target.value.replace(/\D/g, ''))}
-                    />
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
-                      *Nomor identitas bersifat opsional (hanya boleh angka jika diisi).
-                    </span>
-                  </div>
-
-                  {/* NOMOR KARTU AKSES / BADGE (DROPDOWN 001 - 050) */}
-                  <div className="form-group" style={{ gridColumn: '1 / -1', background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0' }}>
-                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700, color: '#0f172a' }}>
-                        <CreditCard size={18} style={{ color: '#059669' }} />
-                        <span>No. Kartu Akses Tamu Umum / Visitor Badge (001 - 050)</span>
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '2px 8px', borderRadius: 4 }}>
-                        Kartu Tamu (Opsional)
-                      </span>
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <select
-                        className="form-select"
-                        style={{
-                          paddingLeft: 40,
-                          borderColor: formData.card_number ? '#10b981' : undefined,
-                          background: formData.card_number ? '#f0fdf4' : '#ffffff',
-                          fontWeight: 600,
-                          fontSize: '0.9375rem',
-                          cursor: 'pointer'
-                        }}
-                        value={formData.card_number}
-                        onChange={(e) => handleChange('card_number', e.target.value)}
-                      >
-                        <option value="">-- Pilih No. Kartu Tamu (001 - 050) / Kosongkan --</option>
-                        {CARD_OPTIONS.map((num) => {
-                          const tamuOccupied = activeCardsData.tamu?.occupied || activeCardsData.occupied || [];
-                          const isOccupied = tamuOccupied.includes(num);
-                          const occupant = activeCardsData.tamu?.details?.[num] || activeCardsData.details?.[num];
-                          return (
-                            <option
-                              key={num}
-                              value={num}
-                              disabled={isOccupied}
-                              style={isOccupied ? { color: '#94a3b8', background: '#f1f5f9' } : { color: '#0f172a' }}
-                            >
-                              Kartu Tamu {num} {isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Tamu Aktif'})` : ' (Tersedia)'}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      <CreditCard
-                        size={18}
-                        style={{
-                          position: 'absolute',
-                          left: 12,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          color: formData.card_number ? '#047857' : '#94a3b8',
-                          pointerEvents: 'none'
-                        }}
-                      />
+                  {/* Informasi Kartu Akses & Lantai Tujuan Otomatis */}
+                  <div style={{
+                    gridColumn: '1 / -1',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    padding: '14px 16px',
+                    borderRadius: 10,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12
+                  }}>
+                    <div style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: '#dcfce7',
+                      color: '#059669',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <CreditCard size={20} />
                     </div>
-                    {(() => {
-                      const tamuOccupied = activeCardsData.tamu?.occupied || activeCardsData.occupied || [];
-                      const occupiedCount = CARD_OPTIONS.filter(num => tamuOccupied.includes(num)).length;
-                      const availableCount = CARD_OPTIONS.length - occupiedCount;
-                      return (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginTop: 6, fontSize: '0.75rem', color: '#64748b' }}>
-                          <span>Nomor kartu fisik tamu umum (001 - 050). Terpisah dari kartu anak magang.</span>
-                          <span style={{ fontWeight: 600, color: availableCount === 50 ? '#059669' : availableCount > 0 ? '#2563eb' : '#dc2626' }}>
-                            ✓ Tersedia {availableCount} / 50 Kartu Tamu
-                          </span>
-                        </div>
-                      );
-                    })()}
+                    <div style={{ fontSize: '0.8125rem', color: '#166534', lineHeight: 1.5 }}>
+                      <div style={{ fontWeight: 700, color: '#14532d', marginBottom: 2 }}>
+                        Penyerahan Kartu Akses & Penentuan Lantai Tujuan oleh Security (Lantai 11)
+                      </div>
+                      Nomor kartu akses tamu fisik (001 - 050) akan diberikan secara otomatis berurutan dan diverifikasi bersama lantai tujuan oleh petugas security di lantai 11.
+                    </div>
                   </div>
                 </div>
 

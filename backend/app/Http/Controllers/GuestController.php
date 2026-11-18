@@ -15,6 +15,55 @@ use Illuminate\Support\Facades\Storage;
 
 class GuestController extends Controller
 {
+    /**
+     * Get the next sequential looping available card number (001 - 050).
+     * Continues forward from the last assigned card number up to 50, then wraps back to 001.
+     * Skips any cards currently occupied by active guests.
+     */
+    public static function getNextAvailableCard(string $category): ?string
+    {
+        // 1. Get currently occupied cards for this category (status != 'Sudah Keluar' and status != 'Dibatalkan')
+        $occupiedCards = Guest::where('category', $category)
+            ->whereNotNull('card_number')
+            ->where('card_number', '!=', '')
+            ->whereNotIn('status', ['Sudah Keluar', 'Dibatalkan'])
+            ->pluck('card_number')
+            ->map(function ($c) {
+                $trimmed = trim($c);
+                return is_numeric($trimmed) ? str_pad((int)$trimmed, 3, '0', STR_PAD_LEFT) : $trimmed;
+            })
+            ->filter()
+            ->all();
+
+        $occupiedLookup = array_flip($occupiedCards);
+
+        // 2. Find the most recently assigned card number for this category
+        $latestGuestWithCard = Guest::where('category', $category)
+            ->whereNotNull('card_number')
+            ->where('card_number', '!=', '')
+            ->latest('id')
+            ->first();
+
+        $lastNumber = 0;
+        if ($latestGuestWithCard && is_numeric(trim($latestGuestWithCard->card_number))) {
+            $lastNumber = (int)trim($latestGuestWithCard->card_number);
+            if ($lastNumber < 1 || $lastNumber > 50) {
+                $lastNumber = 0;
+            }
+        }
+
+        // 3. Search starting from ($lastNumber % 50) + 1, looping through 50 candidates
+        for ($i = 1; $i <= 50; $i++) {
+            $candidateNum = (($lastNumber - 1 + $i) % 50) + 1;
+            $candidateStr = str_pad($candidateNum, 3, '0', STR_PAD_LEFT);
+            if (!isset($occupiedLookup[$candidateStr])) {
+                return $candidateStr;
+            }
+        }
+
+        return null; // All 50 cards are currently occupied
+    }
+
     public function activeCards(Request $request)
     {
         $excludeGuestId = $request->query('exclude_guest_id');
@@ -54,16 +103,25 @@ class GuestController extends Controller
             }
         }
 
+        $nextTamu = self::getNextAvailableCard('tamu');
+        $nextMagang = self::getNextAvailableCard('magang');
+
         return response()->json([
             'occupied' => array_values(array_unique(array_merge($tamuOccupied, $magangOccupied))),
             'details' => array_merge($tamuDetails, $magangDetails),
+            'next_card' => [
+                'tamu' => $nextTamu,
+                'magang' => $nextMagang,
+            ],
             'tamu' => [
                 'occupied' => array_values(array_unique($tamuOccupied)),
                 'details' => $tamuDetails,
+                'next_card' => $nextTamu,
             ],
             'magang' => [
                 'occupied' => array_values(array_unique($magangOccupied)),
                 'details' => $magangDetails,
+                'next_card' => $nextMagang,
             ],
         ]);
     }
@@ -161,7 +219,7 @@ class GuestController extends Controller
             'purpose' => $isMagang ? 'nullable|string' : 'required|string',
             'meeting_with' => $isMagang ? 'nullable|string|max:255' : 'required|string|max:255',
             'destination_division' => 'required|string|max:255',
-            'destination_floor' => $isMagang ? 'nullable|string|max:255' : 'required|string|max:255',
+            'destination_floor' => 'nullable|string|max:255',
             'identity_type' => $isMagang ? 'nullable|string' : 'required|string|in:KTP,SIM,ID Card,ID Pegawai,Passport,Lainnya',
             'identity_number' => 'nullable|string|regex:/^[0-9]*$/|max:100',
             'identity_photo' => 'nullable',
@@ -183,8 +241,11 @@ class GuestController extends Controller
         $isMagang = $request->input('category') === 'magang';
         $category = $isMagang ? 'magang' : 'tamu';
 
-        if ($request->filled('card_number')) {
-            $cardNumber = trim($request->card_number);
+        $cardNumber = $request->filled('card_number') ? trim($request->card_number) : null;
+        if ($cardNumber) {
+            if (is_numeric($cardNumber) && (int)$cardNumber >= 1 && (int)$cardNumber <= 50) {
+                $cardNumber = str_pad((int)$cardNumber, 3, '0', STR_PAD_LEFT);
+            }
             $inUse = Guest::where('card_number', $cardNumber)
                 ->where('category', $category)
                 ->where('status', '!=', 'Sudah Keluar')
@@ -196,6 +257,9 @@ class GuestController extends Controller
                     'message' => "Nomor {$cardLabel} {$cardNumber} sedang digunakan oleh {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
                 ], 422);
             }
+        } else {
+            // Auto-assign next looping card number (001 - 050)
+            $cardNumber = self::getNextAvailableCard($category);
         }
 
         $identityPhotoPath = ($request->hasFile('identity_photo') || $request->filled('identity_photo'))
@@ -219,7 +283,7 @@ class GuestController extends Controller
             'address' => $request->address,
             'notes' => $request->notes,
             'category' => $category,
-            'card_number' => $request->filled('card_number') ? trim($request->card_number) : null,
+            'card_number' => $cardNumber,
             'purpose' => $request->filled('purpose') ? $request->purpose : ($isMagang ? 'Kegiatan Magang / PKL' : '-'),
             'meeting_with' => $request->filled('meeting_with') ? $request->meeting_with : ($isMagang ? 'Pembimbing Divisi' : '-'),
             'destination_division' => $request->destination_division,
@@ -281,7 +345,7 @@ class GuestController extends Controller
             }
         }
 
-        $successMsg = "Pendaftaran berhasil dicatat! Silakan menuju ke pos security untuk verifikasi data dan pengambilan kartu akses.";
+        $successMsg = "Pendaftaran berhasil dicatat! Nomor {$cardTypeStr} Anda: {$guestPayload['card_number']}. Silakan menuju ke pos security lantai 11 untuk verifikasi identitas dan pengambilan kartu akses.";
 
         return response()->json([
             'message' => $successMsg,
@@ -421,8 +485,15 @@ class GuestController extends Controller
             'verified_by' => $user->id,
         ];
 
+        if ($request->filled('destination_floor')) {
+            $updateData['destination_floor'] = $request->destination_floor;
+        }
+
         if ($request->filled('card_number')) {
             $cardNumber = trim($request->card_number);
+            if (is_numeric($cardNumber) && (int)$cardNumber >= 1 && (int)$cardNumber <= 50) {
+                $cardNumber = str_pad((int)$cardNumber, 3, '0', STR_PAD_LEFT);
+            }
             $cat = $request->input('category', $guest->category);
             $inUse = Guest::where('card_number', $cardNumber)
                 ->where('category', $cat)
@@ -437,6 +508,8 @@ class GuestController extends Controller
                 ], 422);
             }
             $updateData['card_number'] = $cardNumber;
+        } elseif (empty($guest->card_number)) {
+            $updateData['card_number'] = self::getNextAvailableCard($guest->category);
         }
 
         if ($request->filled('category')) {
@@ -492,8 +565,15 @@ class GuestController extends Controller
             'verified_by' => $guest->verified_by ?? $user->id,
         ];
 
+        if ($request->filled('destination_floor')) {
+            $updateData['destination_floor'] = $request->destination_floor;
+        }
+
         if ($request->filled('card_number')) {
             $cardNumber = trim($request->card_number);
+            if (is_numeric($cardNumber) && (int)$cardNumber >= 1 && (int)$cardNumber <= 50) {
+                $cardNumber = str_pad((int)$cardNumber, 3, '0', STR_PAD_LEFT);
+            }
             $cat = $request->input('category', $guest->category);
             $inUse = Guest::where('card_number', $cardNumber)
                 ->where('category', $cat)

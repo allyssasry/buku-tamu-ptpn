@@ -95,8 +95,10 @@ const GuestSuccess = () => {
                   <div style={{ fontWeight: 600, color: '#0f172a' }}>{guest.institution}</div>
                 </div>
                 <div>
-                  <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Tujuan / Lantai:</div>
-                  <div style={{ color: '#0f172a', fontWeight: 500 }}>{guest.destination_floor || '-'}</div>
+                  <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Lantai Tujuan:</div>
+                  <div style={{ color: '#0284c7', fontWeight: 600 }}>
+                    {guest.destination_floor && guest.destination_floor !== '-' ? guest.destination_floor : 'Diverifikasi oleh Security (Lt. 11)'}
+                  </div>
                 </div>
                 <div>
                   <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Tujuan Kunjungan:</div>
@@ -106,8 +108,10 @@ const GuestSuccess = () => {
                   <div style={{ gridColumn: '1 / -1', background: '#ffffff', border: '1px solid #cbd5e1', padding: '8px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
                     <CreditCard size={18} style={{ color: '#047857' }} />
                     <div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Nomor Kartu Akses:</div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{guest.card_number}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Nomor Kartu Akses Fisik (Otomatis):</div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>
+                        {guest.category === 'magang' ? `Kartu Magang ${guest.card_number}` : `Kartu Tamu ${guest.card_number}`}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -132,9 +136,9 @@ const GuestSuccess = () => {
           }}>
             <span style={{ fontSize: '1.125rem', lineHeight: 1 }}>ℹ️</span>
             <div>
-              <strong style={{ color: '#0f172a' }}>Verifikasi Security & Check-Out:</strong>
+              <strong style={{ color: '#0f172a' }}>Verifikasi Security Lantai 11 & Check-Out:</strong>
               <br />
-              Silakan serahkan identitas fisik (KTP/Kartu Pelajar) Anda kepada petugas security di pos lobby untuk verifikasi identitas dan pengambilan kartu akses. Saat akan selesai berkunjung/keluar gedung, silakan kembalikan kartu akses kepada petugas security untuk melakukan <strong>Check-Out</strong>.
+              Silakan serahkan identitas fisik (KTP/Kartu Pelajar) Anda kepada petugas security di lantai 11 untuk verifikasi identitas, penentuan lantai tujuan, dan pengambilan kartu akses. Saat akan selesai berkunjung/keluar gedung, silakan kembalikan kartu akses kepada petugas security untuk melakukan <strong>Check-Out</strong>.
             </div>
           </div>
 
