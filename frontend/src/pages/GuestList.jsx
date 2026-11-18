@@ -59,8 +59,6 @@ const GuestList = () => {
     destinationFloor: 'Lantai 11',
   });
   const [actionLoading, setActionLoading] = useState(false);
-  const [editingCard, setEditingCard] = useState({ isEditing: false, cardNumber: '' });
-  const [savingCard, setSavingCard] = useState(false);
   const [activeCardsData, setActiveCardsData] = useState({ occupied: [], details: {} });
 
   const fetchActiveCards = async () => {
@@ -143,29 +141,6 @@ const GuestList = () => {
       setEditingCard({ isEditing: false, cardNumber: res.data.card_number || '' });
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  const handleSaveCardManual = async () => {
-    if (!selectedGuest) return;
-    setSavingCard(true);
-    try {
-      const trimmedCard = editingCard.cardNumber.trim();
-      await api.put(`/guests/${selectedGuest.id}`, {
-        card_number: trimmedCard || null,
-      });
-      setSelectedGuest(prev => ({
-        ...prev,
-        card_number: trimmedCard || null,
-      }));
-      setEditingCard({ isEditing: false, cardNumber: trimmedCard });
-      fetchGuests(pagination.current_page);
-      fetchActiveCards();
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || 'Gagal menyimpan nomor kartu.');
-    } finally {
-      setSavingCard(false);
     }
   };
 
@@ -795,74 +770,11 @@ const GuestList = () => {
                   </div>
                 </div>
 
-                {editingCard.isEditing ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', marginTop: 8 }}>
-                    <select
-                      className="form-select"
-                      style={{ maxWidth: 220, fontSize: '0.875rem', fontWeight: 600, fontFamily: 'monospace' }}
-                      value={editingCard.cardNumber}
-                      onChange={(e) => setEditingCard(p => ({ ...p, cardNumber: e.target.value }))}
-                      autoFocus
-                    >
-                      <option value="">-- Tanpa Kartu --</option>
-                      {CARD_OPTIONS.map((num) => {
-                        const occupiedList = selectedGuest?.category === 'magang'
-                          ? (activeCardsData.magang?.occupied || [])
-                          : (activeCardsData.tamu?.occupied || activeCardsData.occupied || []);
-                        const detailsList = selectedGuest?.category === 'magang'
-                          ? (activeCardsData.magang?.details || {})
-                          : (activeCardsData.tamu?.details || activeCardsData.details || {});
-                        const isOccupied = occupiedList.includes(num) && selectedGuest?.card_number !== num;
-                        const occupant = detailsList[num];
-                        const cardPrefix = selectedGuest?.category === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
-                        return (
-                          <option
-                            key={num}
-                            value={num}
-                            disabled={isOccupied}
-                            style={isOccupied ? { color: '#94a3b8', background: '#f1f5f9' } : { color: '#0f172a' }}
-                          >
-                            {cardPrefix} {num} {isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Tamu'})` : ''}
-                          </option>
-                        );
-                      })}
-                      {editingCard.cardNumber && !CARD_OPTIONS.includes(editingCard.cardNumber) && (
-                        <option value={editingCard.cardNumber}>{editingCard.cardNumber}</option>
-                      )}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={handleSaveCardManual}
-                      disabled={savingCard}
-                      className="btn btn-primary btn-sm"
-                    >
-                      {savingCard ? 'Menyimpan...' : 'Simpan'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingCard({ isEditing: false, cardNumber: selectedGuest.card_number || '' })}
-                      className="btn btn-secondary btn-sm"
-                    >
-                      Batal
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      {selectedGuest.card_number ? '✅ Kartu Aktif Digunakan' : '⚠️ Harap serahkan kartu saat verifikasi'}
-                    </span>
-                    {!isPimpinan && (
-                      <button
-                        type="button"
-                        onClick={() => setEditingCard({ isEditing: true, cardNumber: selectedGuest.card_number || '' })}
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }}
-                      >
-                        <span>✏️ {selectedGuest.card_number ? 'Ubah No. Kartu' : 'Isi No. Kartu Manual'}</span>
-                      </button>
-                    )}
-                  </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: '0.75rem', color: '#047857', fontWeight: 600, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: 6 }}>
+                    {selectedGuest.card_number ? '✅ Kartu Aktif Digunakan (Otomatis Looping)' : '⚡ Nomor kartu otomatis saat verifikasi'}
+                  </span>
+                </div>
               </div>
 
               {/* Profile Grid */}
@@ -1045,53 +957,53 @@ const GuestList = () => {
                   </span>
                 </div>
 
-                {/* 2. Nomor Kartu Akses Fisik (Otomatis Looping 001 - 050) */}
-                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: 12, borderRadius: 8 }}>
-                  <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e40af', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <CreditCard size={15} />
+                {/* 2. Nomor Kartu Akses Fisik (Otomatis Looping 001 - 050 - Terkunci / Read-Only) */}
+                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: 14, borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', fontWeight: 700, color: '#1e40af' }}>
+                      <CreditCard size={16} />
                       <span>No. Kartu Akses Fisik (001 - 050):</span>
                     </span>
                     <span style={{ fontSize: '0.6875rem', fontWeight: 700, background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 4 }}>
-                      Otomatis Looping
+                      ⚡ Otomatis Looping
                     </span>
-                  </label>
-                  <select
-                    className="form-select"
-                    value={actionConfirm.cardNumber}
-                    onChange={(e) => setActionConfirm(p => ({ ...p, cardNumber: e.target.value }))}
-                    style={{ fontSize: '0.875rem', fontWeight: 600, fontFamily: 'monospace' }}
-                  >
-                    <option value="">-- Pilih No. Kartu Akses (001 - 050) / Kosongkan --</option>
-                    {CARD_OPTIONS.map((num) => {
-                      const isMagang = actionConfirm.guest?.category === 'magang';
-                      const occupiedList = isMagang
-                        ? (activeCardsData.magang?.occupied || [])
-                        : (activeCardsData.tamu?.occupied || activeCardsData.occupied || []);
-                      const detailsList = isMagang
-                        ? (activeCardsData.magang?.details || {})
-                        : (activeCardsData.tamu?.details || activeCardsData.details || {});
-                      const isOccupied = occupiedList.includes(num) && actionConfirm.guest?.card_number !== num;
-                      const occupant = detailsList[num];
-                      const cardPrefix = isMagang ? 'Kartu Magang' : 'Kartu Tamu';
-                      const isSelected = actionConfirm.cardNumber === num;
-                      return (
-                        <option
-                          key={num}
-                          value={num}
-                          disabled={isOccupied}
-                          style={isOccupied ? { color: '#94a3b8', background: '#f1f5f9' } : { color: '#0f172a' }}
-                        >
-                          {cardPrefix} {num} {isSelected ? '✓ (Nomor Terpilih Otomatis)' : isOccupied ? `(Sedang Dipakai - ${occupant?.name || 'Tamu'})` : ''}
-                        </option>
-                      );
-                    })}
-                    {actionConfirm.cardNumber && !CARD_OPTIONS.includes(actionConfirm.cardNumber) && (
-                      <option value={actionConfirm.cardNumber}>{actionConfirm.cardNumber}</option>
-                    )}
-                  </select>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
-                    *Nomor kartu terisi otomatis secara berurutan (ngeloop 001 - 050). Petugas security dapat menyesuaikan jika diperlukan.
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    background: '#ffffff',
+                    border: '1px solid #93c5fd',
+                    borderRadius: 8,
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    color: '#1e40af'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        padding: '3px 8px',
+                        background: actionConfirm.guest?.category === 'magang' ? '#faf5ff' : '#eff6ff',
+                        color: actionConfirm.guest?.category === 'magang' ? '#7e22ce' : '#1d4ed8',
+                        border: actionConfirm.guest?.category === 'magang' ? '1px solid #d8b4fe' : '1px solid #bfdbfe',
+                        borderRadius: 6,
+                        fontSize: '0.8125rem',
+                        fontWeight: 600
+                      }}>
+                        {actionConfirm.guest?.category === 'magang' ? '🎓 Kartu Magang' : '👤 Kartu Tamu'}
+                      </span>
+                      <span style={{ fontFamily: 'monospace', fontSize: '1.125rem', letterSpacing: '0.05em' }}>
+                        {actionConfirm.cardNumber || (actionConfirm.guest?.category === 'magang' ? '001' : '001')}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      ✓ Terkunci Otomatis
+                    </span>
+                  </div>
+
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 8, display: 'block' }}>
+                    *Nomor kartu telah dialokasikan otomatis oleh sistem (looping 001 - 050). Petugas security cukup menyerahkan kartu fisik bernomor <strong>{actionConfirm.cardNumber}</strong>.
                   </span>
                 </div>
 
