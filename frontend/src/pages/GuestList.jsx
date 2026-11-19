@@ -343,7 +343,9 @@ const GuestList = () => {
               <option value="Lantai 3">Lantai 3</option>
               <option value="Lantai 11">Lantai 11</option>
               <option value="Lantai 15">Lantai 15</option>
+              <option value="Lantai 16">Lantai 16</option>
               <option value="Lantai 16 (Rooftop)">Lantai 16 (Rooftop)</option>
+              <option value="Lantai Penempatan">Lantai Penempatan</option>
               <option value="Basement 1">Basement 1</option>
             </select>
           </div>
@@ -926,9 +928,7 @@ const GuestList = () => {
                   >
                     <option value="Lantai 11">Lantai 11</option>
                     <option value="Lantai 15">Lantai 15</option>
-                    <option value="Lantai 1">Lantai 1</option>
-                    <option value="Lantai 2">Lantai 2</option>
-                    <option value="Lantai 3">Lantai 3</option>
+                    <option value="Lantai 16">Lantai 16</option>
                     <option value="Lantai Penempatan">Lantai Penempatan (Khusus Magang)</option>
                   </select>
                   <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>

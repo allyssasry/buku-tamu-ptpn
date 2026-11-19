@@ -25,7 +25,10 @@ import {
   Clock,
   MapPin,
   CheckCircle2,
-  Info
+  Info,
+  Building2,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -84,7 +87,7 @@ const AdminDashboard = () => {
     fetchDashboard();
   }, []);
 
-  const handleCardClick = async (type) => {
+  const handleCardClick = async (type, extraParams = {}) => {
     setDrilldownModal({
       isOpen: true,
       loading: true,
@@ -98,7 +101,10 @@ const AdminDashboard = () => {
     });
 
     try {
-      const res = await api.get('/dashboard/drilldown', { params: { type }, timeout: 30000 });
+      const res = await api.get('/dashboard/drilldown', {
+        params: { type, ...extraParams },
+        timeout: 30000
+      });
       setDrilldownModal({
         isOpen: true,
         loading: false,
@@ -157,6 +163,15 @@ const AdminDashboard = () => {
   }
 
   const { guest_stats, security_stats, recent_guests, recent_security_logs } = data || {};
+  const { key_floors, floor_monitoring, key_divisions, division_monitoring } = guest_stats || {};
+
+  // Other floors calculation (floors other than 11, 15, 16)
+  const otherFloorsList = (floor_monitoring || []).filter(f => {
+    const fl = (f.floor || '').toLowerCase();
+    return !fl.includes('11') && !fl.includes('15') && !fl.includes('16');
+  });
+  const otherFloorsTotal = otherFloorsList.reduce((acc, curr) => acc + (curr.total || 0), 0);
+  const otherFloorsActive = otherFloorsList.reduce((acc, curr) => acc + (curr.currently_in || 0), 0);
 
   const SECURITY_PIE_COLORS = ['#059669', '#d97706', '#dc2626'];
   const securityPieData = [
@@ -294,6 +309,446 @@ const AdminDashboard = () => {
           subtext="Pengunjung aktif di area"
           onClick={() => handleCardClick('currently_in')}
         />
+      </div>
+
+      {/* SECTION: MONITORING KUNJUNGAN PER LANTAI (HOLDING TOWER) */}
+      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Building2 size={18} style={{ color: '#0284c7' }} />
+          <span style={{ fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', color: '#0369a1', letterSpacing: '0.04em' }}>
+            Monitoring Kunjungan Per Lantai (Holding Tower)
+          </span>
+        </div>
+        <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
+          *Klik kotak lantai untuk melihat rekap & rincian daftar tamu
+        </span>
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: 16,
+        marginBottom: 28
+      }}>
+        <StatCard
+          title="Lantai 11"
+          value={key_floors?.floor_11?.total || 0}
+          icon={Building2}
+          color="sky"
+          subtext={`${key_floors?.floor_11?.currently_in || 0} aktif saat ini • ${key_floors?.floor_11?.today || 0} hari ini`}
+          onClick={() => handleCardClick('floor_11')}
+        />
+        <StatCard
+          title="Lantai 15 (Direksi)"
+          value={key_floors?.floor_15?.total || 0}
+          icon={Briefcase}
+          color="indigo"
+          subtext={`${key_floors?.floor_15?.currently_in || 0} aktif saat ini • ${key_floors?.floor_15?.today || 0} hari ini`}
+          onClick={() => handleCardClick('floor_15')}
+        />
+        <StatCard
+          title="Lantai 16 (Rooftop)"
+          value={key_floors?.floor_16?.total || 0}
+          icon={Building}
+          color="amber"
+          subtext={`${key_floors?.floor_16?.currently_in || 0} aktif saat ini • ${key_floors?.floor_16?.today || 0} hari ini`}
+          onClick={() => handleCardClick('floor_16')}
+        />
+        <StatCard
+          title="Lantai Lainnya"
+          value={otherFloorsTotal}
+          icon={MapPin}
+          color="teal"
+          subtext={`${otherFloorsActive} aktif di lantai lainnya`}
+          onClick={() => {
+            if (otherFloorsList.length > 0) {
+              handleCardClick('floor', { floor: otherFloorsList[0].floor });
+            } else {
+              handleCardClick('currently_in');
+            }
+          }}
+        />
+      </div>
+
+      {/* SECTION: MONITORING KUNJUNGAN PER DIVISI & DIREKSI */}
+      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Briefcase size={18} style={{ color: '#7c3aed' }} />
+          <span style={{ fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', color: '#6d28d9', letterSpacing: '0.04em' }}>
+            Monitoring Kunjungan Per Divisi & Direksi
+          </span>
+        </div>
+        <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
+          *Klik kotak divisi untuk melihat daftar tamu dan agenda rapat
+        </span>
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: 16,
+        marginBottom: 28
+      }}>
+        <StatCard
+          title="Tamu Direksi & Eksekutif"
+          value={key_divisions?.direksi?.total || 0}
+          icon={Briefcase}
+          color="purple"
+          subtext={`${key_divisions?.direksi?.currently_in || 0} aktif • ${key_divisions?.direksi?.today || 0} hari ini`}
+          onClick={() => handleCardClick('direksi')}
+        />
+        <StatCard
+          title="Divisi TI & Sistem Info"
+          value={key_divisions?.ti?.total || 0}
+          icon={Sparkles}
+          color="blue"
+          subtext={`${key_divisions?.ti?.currently_in || 0} aktif • ${key_divisions?.ti?.today || 0} hari ini`}
+          onClick={() => handleCardClick('division', { division: key_divisions?.ti?.division || 'IT Infrastructure' })}
+        />
+        <StatCard
+          title="Divisi Keuangan & Anggaran"
+          value={key_divisions?.keuangan?.total || 0}
+          icon={TrendingUp}
+          color="green"
+          subtext={`${key_divisions?.keuangan?.currently_in || 0} aktif • ${key_divisions?.keuangan?.today || 0} hari ini`}
+          onClick={() => handleCardClick('division', { division: key_divisions?.keuangan?.division || 'Keuangan' })}
+        />
+        <StatCard
+          title="Divisi Pengadaan & SDM"
+          value={key_divisions?.pengadaan?.total || 0}
+          icon={Users}
+          color="amber"
+          subtext={`${key_divisions?.pengadaan?.currently_in || 0} aktif • ${key_divisions?.pengadaan?.today || 0} hari ini`}
+          onClick={() => handleCardClick('division', { division: key_divisions?.pengadaan?.division || 'Pengadaan' })}
+        />
+      </div>
+
+      {/* SECTION: REKAPAN KORELASI LANTAI 11, 15, 16 & DIVISI TUJUAN */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Layers size={18} style={{ color: '#059669' }} />
+            <span style={{ fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', color: '#047857', letterSpacing: '0.04em' }}>
+              Rekapan Kunjungan Lantai 11, 15, 16 & Divisi Tujuan
+            </span>
+          </div>
+          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+            Rincian jumlah orang per lantai beserta alokasi divisi yang dikunjungi
+          </span>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: 16
+        }}>
+          {/* Card Rekapan Lantai 11 */}
+          <div className="glass-card" style={{ padding: 18, borderTop: '4px solid #0284c7' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  background: '#e0f2fe',
+                  color: '#0369a1',
+                  padding: '2px 8px',
+                  borderRadius: 4
+                }}>
+                  Lantai 11
+                </span>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
+                  Security, Resepsionis & Operasional
+                </h4>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0284c7' }}>
+                  {key_floors?.floor_11?.total || 0} <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>Orang</span>
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600 }}>
+                  {key_floors?.floor_11?.currently_in || 0} Sedang di Lantai
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', marginBottom: 6 }}>
+              Divisi yang Dikunjungi di Lantai 11:
+            </div>
+            {key_floors?.floor_11?.divisions && key_floors?.floor_11?.divisions.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                {key_floors.floor_11.divisions.map((d, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: '#f8fafc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #e2e8f0',
+                    fontSize: '0.8125rem'
+                  }}>
+                    <span style={{ fontWeight: 500, color: '#334155' }}>{d.division}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {d.currently_in > 0 && (
+                        <span style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600, background: '#dcfce7', padding: '1px 6px', borderRadius: 4 }}>
+                          {d.currently_in} aktif
+                        </span>
+                      )}
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>{d.total} Tamu</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', marginBottom: 14 }}>
+                Belum ada pembagian divisi spesifik untuk lantai ini.
+              </div>
+            )}
+
+            <button
+              onClick={() => handleCardClick('floor_11')}
+              className="btn btn-secondary btn-sm"
+              style={{ width: '100%', justifyContent: 'center', fontSize: '0.75rem', padding: '6px 12px' }}
+            >
+              <span>Lihat Rincian Tamu Lantai 11</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {/* Card Rekapan Lantai 15 */}
+          <div className="glass-card" style={{ padding: 18, borderTop: '4px solid #6366f1' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  background: '#e0e7ff',
+                  color: '#4338ca',
+                  padding: '2px 8px',
+                  borderRadius: 4
+                }}>
+                  Lantai 15
+                </span>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
+                  Executive Boardroom & Direksi
+                </h4>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4f46e5' }}>
+                  {key_floors?.floor_15?.total || 0} <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>Orang</span>
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600 }}>
+                  {key_floors?.floor_15?.currently_in || 0} Sedang di Lantai
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', marginBottom: 6 }}>
+              Divisi yang Dikunjungi di Lantai 15:
+            </div>
+            {key_floors?.floor_15?.divisions && key_floors?.floor_15?.divisions.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                {key_floors.floor_15.divisions.map((d, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: '#f8fafc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #e2e8f0',
+                    fontSize: '0.8125rem'
+                  }}>
+                    <span style={{ fontWeight: 500, color: '#334155' }}>{d.division}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {d.currently_in > 0 && (
+                        <span style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600, background: '#dcfce7', padding: '1px 6px', borderRadius: 4 }}>
+                          {d.currently_in} aktif
+                        </span>
+                      )}
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>{d.total} Tamu</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', marginBottom: 14 }}>
+                Belum ada pembagian divisi spesifik untuk lantai ini.
+              </div>
+            )}
+
+            <button
+              onClick={() => handleCardClick('floor_15')}
+              className="btn btn-secondary btn-sm"
+              style={{ width: '100%', justifyContent: 'center', fontSize: '0.75rem', padding: '6px 12px' }}
+            >
+              <span>Lihat Rincian Tamu Lantai 15</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {/* Card Rekapan Lantai 16 */}
+          <div className="glass-card" style={{ padding: 18, borderTop: '4px solid #f59e0b' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  background: '#fef3c7',
+                  color: '#b45309',
+                  padding: '2px 8px',
+                  borderRadius: 4
+                }}>
+                  Lantai 16 (Rooftop)
+                </span>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
+                  Rooftop, Genset & Helipad
+                </h4>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#d97706' }}>
+                  {key_floors?.floor_16?.total || 0} <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>Orang</span>
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600 }}>
+                  {key_floors?.floor_16?.currently_in || 0} Sedang di Lantai
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', marginBottom: 6 }}>
+              Divisi yang Dikunjungi di Lantai 16:
+            </div>
+            {key_floors?.floor_16?.divisions && key_floors?.floor_16?.divisions.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                {key_floors.floor_16.divisions.map((d, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: '#f8fafc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #e2e8f0',
+                    fontSize: '0.8125rem'
+                  }}>
+                    <span style={{ fontWeight: 500, color: '#334155' }}>{d.division}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {d.currently_in > 0 && (
+                        <span style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600, background: '#dcfce7', padding: '1px 6px', borderRadius: 4 }}>
+                          {d.currently_in} aktif
+                        </span>
+                      )}
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>{d.total} Tamu</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', marginBottom: 14 }}>
+                Belum ada pembagian divisi spesifik untuk lantai ini.
+              </div>
+            )}
+
+            <button
+              onClick={() => handleCardClick('floor_16')}
+              className="btn btn-secondary btn-sm"
+              style={{ width: '100%', justifyContent: 'center', fontSize: '0.75rem', padding: '6px 12px' }}
+            >
+              <span>Lihat Rincian Tamu Lantai 16</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Tabel Rekapan Seluruh Divisi & Lantai */}
+        {division_monitoring && division_monitoring.length > 0 && (
+          <div className="glass-card" style={{ marginTop: 16, padding: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
+                  Matriks Rekapan Seluruh Divisi & Lokasi Lantai
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  Jumlah total kunjungan, tamu aktif, dan sebaran lantai tujuan masing-masing divisi
+                </p>
+              </div>
+            </div>
+
+            <div className="table-container" style={{ maxHeight: 280, overflowY: 'auto' }}>
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Divisi / Unit Kerja</th>
+                    <th>Sebaran Lantai</th>
+                    <th>Sedang Aktif</th>
+                    <th>Total Tamu</th>
+                    <th style={{ textAlign: 'right' }}>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {division_monitoring.map((div, idx) => (
+                    <tr key={idx}>
+                      <td>
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{div.division}</div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {div.floors && div.floors.length > 0 ? (
+                            div.floors.map((fl, fIdx) => (
+                              <span key={fIdx} style={{
+                                fontSize: '0.6875rem',
+                                fontWeight: 600,
+                                background: '#f1f5f9',
+                                color: '#475569',
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                border: '1px solid #cbd5e1'
+                              }}>
+                                {fl.floor} ({fl.total})
+                              </span>
+                            ))
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        {div.currently_in > 0 ? (
+                          <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: '#059669',
+                            background: '#dcfce7',
+                            padding: '2px 8px',
+                            borderRadius: 6
+                          }}>
+                            {div.currently_in} Aktif
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>0</span>
+                        )}
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.875rem' }}>
+                          {div.total}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          onClick={() => handleCardClick('division', { division: div.division })}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '3px 8px', fontSize: '0.75rem' }}
+                          title={`Lihat tamu ${div.division}`}
+                        >
+                          <Eye size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* SECTION 2: STATISTIK SECURITY */}

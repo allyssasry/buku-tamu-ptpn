@@ -35,6 +35,24 @@ const StatCard = ({ title, value, icon: Icon, color = 'blue', subtext, trend, on
       border: '#ddd6fe',
       activeRing: 'rgba(124, 58, 237, 0.15)',
     },
+    indigo: {
+      bg: '#eef2ff',
+      text: '#4f46e5',
+      border: '#c7d2fe',
+      activeRing: 'rgba(79, 70, 229, 0.15)',
+    },
+    sky: {
+      bg: '#f0f9ff',
+      text: '#0284c7',
+      border: '#bae6fd',
+      activeRing: 'rgba(2, 132, 199, 0.15)',
+    },
+    teal: {
+      bg: '#f0fdfa',
+      text: '#0d9488',
+      border: '#99f6e4',
+      activeRing: 'rgba(13, 148, 136, 0.15)',
+    },
   };
 
   const scheme = colorMap[color] || colorMap.blue;

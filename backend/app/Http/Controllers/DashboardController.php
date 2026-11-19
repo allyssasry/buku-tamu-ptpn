@@ -39,19 +39,222 @@ class DashboardController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status');
 
-        // Kunjungan berdasarkan lantai
+        // Kunjungan berdasarkan lantai (chart & simple list)
         $visitsByFloor = DB::table('guests')
             ->select('destination_floor as floor', DB::raw('count(*) as count'))
             ->groupBy('destination_floor')
             ->orderByDesc('count')
             ->get();
 
-        // Kunjungan berdasarkan divisi
+        // Kunjungan berdasarkan divisi (chart & simple list)
         $visitsByDivision = DB::table('guests')
             ->select('destination_division as division', DB::raw('count(*) as count'))
             ->groupBy('destination_division')
             ->orderByDesc('count')
             ->get();
+
+        // Rekapan Komprehensif Per Lantai (Lantai 11, Lantai 15, Lantai 16, dll.)
+        $rawFloorRows = DB::table('guests')
+            ->select(
+                'destination_floor as floor',
+                DB::raw('COUNT(*) as total'),
+                DB::raw("COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in"),
+                DB::raw("COALESCE(SUM(CASE WHEN DATE(submitted_at) = '$today' THEN 1 ELSE 0 END), 0) as today"),
+                DB::raw("COALESCE(SUM(CASE WHEN submitted_at >= '$startOfMonth' THEN 1 ELSE 0 END), 0) as this_month"),
+                DB::raw("COALESCE(SUM(CASE WHEN category = 'magang' THEN 1 ELSE 0 END), 0) as magang_count")
+            )
+            ->whereNotNull('destination_floor')
+            ->where('destination_floor', '!=', '')
+            ->where('destination_floor', '!=', '-')
+            ->groupBy('destination_floor')
+            ->orderByDesc('currently_in')
+            ->orderByDesc('total')
+            ->get();
+
+        // Relasi Lantai ke Divisi Tujuan
+        $floorDivisionPairs = DB::table('guests')
+            ->select(
+                'destination_floor as floor',
+                'destination_division as division',
+                DB::raw('COUNT(*) as total'),
+                DB::raw("COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in")
+            )
+            ->whereNotNull('destination_floor')
+            ->where('destination_floor', '!=', '')
+            ->where('destination_floor', '!=', '-')
+            ->groupBy('destination_floor', 'destination_division')
+            ->orderByDesc('total')
+            ->get();
+
+        $divisionsByFloor = [];
+        $floorsByDivision = [];
+        foreach ($floorDivisionPairs as $pair) {
+            $f = $pair->floor;
+            $d = $pair->division ?: 'Umum / Lainnya';
+            if (!isset($divisionsByFloor[$f])) {
+                $divisionsByFloor[$f] = [];
+            }
+            $divisionsByFloor[$f][] = [
+                'division' => $d,
+                'total' => (int) $pair->total,
+                'currently_in' => (int) $pair->currently_in,
+            ];
+
+            if (!isset($floorsByDivision[$d])) {
+                $floorsByDivision[$d] = [];
+            }
+            $floorsByDivision[$d][] = [
+                'floor' => $f,
+                'total' => (int) $pair->total,
+                'currently_in' => (int) $pair->currently_in,
+            ];
+        }
+
+        $floorMonitoring = $rawFloorRows->map(function ($item) use ($divisionsByFloor) {
+            return [
+                'floor' => $item->floor,
+                'total' => (int) $item->total,
+                'currently_in' => (int) $item->currently_in,
+                'today' => (int) $item->today,
+                'this_month' => (int) $item->this_month,
+                'magang_count' => (int) $item->magang_count,
+                'divisions' => $divisionsByFloor[$item->floor] ?? [],
+            ];
+        })->values();
+
+        // Key Floors: Lantai 11, Lantai 15, Lantai 16
+        $findFloorData = function ($pattern, $label) use ($floorMonitoring) {
+            $match = $floorMonitoring->first(function ($f) use ($pattern) {
+                return str_contains(strtolower($f['floor']), strtolower($pattern));
+            });
+            if ($match) {
+                return $match;
+            }
+            return [
+                'floor' => $label,
+                'total' => 0,
+                'currently_in' => 0,
+                'today' => 0,
+                'this_month' => 0,
+                'magang_count' => 0,
+                'divisions' => [],
+            ];
+        };
+
+        $keyFloors = [
+            'floor_11' => $findFloorData('11', 'Lantai 11'),
+            'floor_15' => $findFloorData('15', 'Lantai 15'),
+            'floor_16' => $findFloorData('16', 'Lantai 16 (Rooftop)'),
+        ];
+
+        // Detailed Division & Direksi Monitoring
+        $rawDivisionRows = DB::table('guests')
+            ->select(
+                'destination_division as division',
+                DB::raw('COUNT(*) as total'),
+                DB::raw("COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in"),
+                DB::raw("COALESCE(SUM(CASE WHEN DATE(submitted_at) = '$today' THEN 1 ELSE 0 END), 0) as today"),
+                DB::raw("COALESCE(SUM(CASE WHEN submitted_at >= '$startOfMonth' THEN 1 ELSE 0 END), 0) as this_month")
+            )
+            ->whereNotNull('destination_division')
+            ->where('destination_division', '!=', '')
+            ->groupBy('destination_division')
+            ->orderByDesc('currently_in')
+            ->orderByDesc('total')
+            ->get();
+
+        $divisionMonitoring = $rawDivisionRows->map(function ($item) use ($floorsByDivision) {
+            return [
+                'division' => $item->division,
+                'total' => (int) $item->total,
+                'currently_in' => (int) $item->currently_in,
+                'today' => (int) $item->today,
+                'this_month' => (int) $item->this_month,
+                'floors' => $floorsByDivision[$item->division] ?? [],
+            ];
+        })->values();
+
+        // Direksi aggregate
+        $direksiRow = DB::table('guests')->selectRaw("
+            COUNT(*) as total,
+            COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in,
+            COALESCE(SUM(CASE WHEN DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as today,
+            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_month
+        ", [$today, $startOfMonth])
+        ->where(function ($q) {
+            $q->where('destination_division', 'LIKE', '%Direksi%')
+              ->orWhere('meeting_with', 'LIKE', '%Direkt%');
+        })->first();
+
+        // TI aggregate
+        $tiRow = DB::table('guests')->selectRaw("
+            COUNT(*) as total,
+            COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in,
+            COALESCE(SUM(CASE WHEN DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as today,
+            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_month
+        ", [$today, $startOfMonth])
+        ->where(function ($q) {
+            $q->where('destination_division', 'LIKE', '%IT%')
+              ->orWhere('destination_division', 'LIKE', '%Teknologi%')
+              ->orWhere('destination_division', 'LIKE', '%Sistem%');
+        })->first();
+
+        // Keuangan aggregate
+        $keuanganRow = DB::table('guests')->selectRaw("
+            COUNT(*) as total,
+            COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in,
+            COALESCE(SUM(CASE WHEN DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as today,
+            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_month
+        ", [$today, $startOfMonth])
+        ->where(function ($q) {
+            $q->where('destination_division', 'LIKE', '%Keuangan%')
+              ->orWhere('destination_division', 'LIKE', '%Anggaran%')
+              ->orWhere('destination_division', 'LIKE', '%Akuntansi%');
+        })->first();
+
+        // Pengadaan & SDM aggregate
+        $pengadaanRow = DB::table('guests')->selectRaw("
+            COUNT(*) as total,
+            COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in,
+            COALESCE(SUM(CASE WHEN DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as today,
+            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_month
+        ", [$today, $startOfMonth])
+        ->where(function ($q) {
+            $q->where('destination_division', 'LIKE', '%Pengadaan%')
+              ->orWhere('destination_division', 'LIKE', '%SDM%')
+              ->orWhere('destination_division', 'LIKE', '%Human Capital%');
+        })->first();
+
+        $keyDivisions = [
+            'direksi' => [
+                'division' => 'Direksi & Eksekutif',
+                'total' => (int) ($direksiRow->total ?? 0),
+                'currently_in' => (int) ($direksiRow->currently_in ?? 0),
+                'today' => (int) ($direksiRow->today ?? 0),
+                'this_month' => (int) ($direksiRow->this_month ?? 0),
+            ],
+            'ti' => [
+                'division' => 'Divisi TI & Sistem Informasi',
+                'total' => (int) ($tiRow->total ?? 0),
+                'currently_in' => (int) ($tiRow->currently_in ?? 0),
+                'today' => (int) ($tiRow->today ?? 0),
+                'this_month' => (int) ($tiRow->this_month ?? 0),
+            ],
+            'keuangan' => [
+                'division' => 'Divisi Keuangan & Anggaran',
+                'total' => (int) ($keuanganRow->total ?? 0),
+                'currently_in' => (int) ($keuanganRow->currently_in ?? 0),
+                'today' => (int) ($keuanganRow->today ?? 0),
+                'this_month' => (int) ($keuanganRow->this_month ?? 0),
+            ],
+            'pengadaan' => [
+                'division' => 'Divisi Pengadaan & SDM',
+                'total' => (int) ($pengadaanRow->total ?? 0),
+                'currently_in' => (int) ($pengadaanRow->currently_in ?? 0),
+                'today' => (int) ($pengadaanRow->today ?? 0),
+                'this_month' => (int) ($pengadaanRow->this_month ?? 0),
+            ],
+        ];
 
         // 7-day trend in 1 single grouped query
         $trendRows = DB::table('guests')
@@ -137,6 +340,10 @@ class DashboardController extends Controller
                 ],
                 'by_floor' => $visitsByFloor,
                 'by_division' => $visitsByDivision,
+                'floor_monitoring' => $floorMonitoring,
+                'key_floors' => $keyFloors,
+                'division_monitoring' => $divisionMonitoring,
+                'key_divisions' => $keyDivisions,
                 'trend' => $sevenDaysTrend,
             ],
             'security_stats' => [
@@ -353,6 +560,83 @@ class DashboardController extends Controller
                 $subtitle = 'Laporan insiden abnormal yang membutuhkan penanganan darurat/khusus';
                 $category = 'security';
                 $linkTo = '/security-book?status=Insiden';
+                break;
+
+            case 'floor_11':
+                $items = Guest::select($guestColumns)
+                    ->where('destination_floor', 'LIKE', '%11%')
+                    ->latest('submitted_at')
+                    ->get();
+                $title = 'Monitoring Tamu Lantai 11';
+                $subtitle = 'Rincian seluruh tamu yang berkunjung ke Lantai 11 (Security Meja Resepsionis & Operasional)';
+                $category = 'guest';
+                $linkTo = '/guests?floor=Lantai 11';
+                break;
+
+            case 'floor_15':
+                $items = Guest::select($guestColumns)
+                    ->where('destination_floor', 'LIKE', '%15%')
+                    ->latest('submitted_at')
+                    ->get();
+                $title = 'Monitoring Tamu Lantai 15';
+                $subtitle = 'Rincian tamu eksekutif, mitra VVIP, dan agenda rapat di Lantai 15 (Executive Boardroom & Direksi)';
+                $category = 'guest';
+                $linkTo = '/guests?floor=Lantai 15';
+                break;
+
+            case 'floor_16':
+                $items = Guest::select($guestColumns)
+                    ->where('destination_floor', 'LIKE', '%16%')
+                    ->latest('submitted_at')
+                    ->get();
+                $title = 'Monitoring Tamu Lantai 16 (Rooftop)';
+                $subtitle = 'Rincian teknisi vendor genset, chiller, fasilitas teknik di Lantai 16 (Rooftop & Helipad)';
+                $category = 'guest';
+                $linkTo = '/guests?floor=Lantai 16 (Rooftop)';
+                break;
+
+            case 'floor':
+                $targetFloor = $request->input('floor', 'Lantai 11');
+                $items = Guest::select($guestColumns)
+                    ->where(function ($q) use ($targetFloor) {
+                        $q->where('destination_floor', $targetFloor)
+                          ->orWhere('destination_floor', 'LIKE', "%{$targetFloor}%");
+                    })
+                    ->latest('submitted_at')
+                    ->get();
+                $title = "Monitoring Tamu: {$targetFloor}";
+                $subtitle = "Rincian seluruh pengunjung dan tamu yang tercatat berkunjung ke {$targetFloor}";
+                $category = 'guest';
+                $linkTo = '/guests?floor=' . urlencode($targetFloor);
+                break;
+
+            case 'direksi':
+                $items = Guest::select($guestColumns)
+                    ->where(function ($q) {
+                        $q->where('destination_division', 'LIKE', '%Direksi%')
+                          ->orWhere('meeting_with', 'LIKE', '%Direkt%');
+                    })
+                    ->latest('submitted_at')
+                    ->get();
+                $title = 'Monitoring Kunjungan Direksi & Eksekutif';
+                $subtitle = 'Rincian seluruh tamu audiensi pimpinan dan rapat bersama jajaran Direksi';
+                $category = 'guest';
+                $linkTo = '/guests?search=Direksi';
+                break;
+
+            case 'division':
+                $targetDiv = $request->input('division', 'Direksi');
+                $items = Guest::select($guestColumns)
+                    ->where(function ($q) use ($targetDiv) {
+                        $q->where('destination_division', $targetDiv)
+                          ->orWhere('destination_division', 'LIKE', "%{$targetDiv}%");
+                    })
+                    ->latest('submitted_at')
+                    ->get();
+                $title = "Monitoring Tamu Divisi: {$targetDiv}";
+                $subtitle = "Rincian seluruh tamu yang memiliki agenda kunjungan ke {$targetDiv}";
+                $category = 'guest';
+                $linkTo = '/guests?search=' . urlencode($targetDiv);
                 break;
 
             default:

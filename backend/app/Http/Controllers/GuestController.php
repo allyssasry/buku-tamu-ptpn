@@ -174,7 +174,11 @@ class GuestController extends Controller
 
         // Filter: Floor
         if ($request->filled('floor') && $request->floor !== 'all') {
-            $query->where('destination_floor', $request->floor);
+            $f = $request->floor;
+            $query->where(function ($q) use ($f) {
+                $q->where('destination_floor', $f)
+                  ->orWhere('destination_floor', 'LIKE', "%{$f}%");
+            });
         }
 
         // Filter: Division
