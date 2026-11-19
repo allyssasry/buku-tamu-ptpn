@@ -65,6 +65,10 @@ const AdminDashboard = () => {
     searchQuery: '',
   });
 
+  // 19 Official Divisions Matrix filter & search
+  const [divisionFilter, setDivisionFilter] = useState('all'); // 'all', 'direksi', 'divisi'
+  const [divisionSearch, setDivisionSearch] = useState('');
+
   const fetchDashboard = async () => {
     try {
       setLoading(true);
@@ -172,6 +176,17 @@ const AdminDashboard = () => {
   });
   const otherFloorsTotal = otherFloorsList.reduce((acc, curr) => acc + (curr.total || 0), 0);
   const otherFloorsActive = otherFloorsList.reduce((acc, curr) => acc + (curr.currently_in || 0), 0);
+
+  // Filtered 19 Official Divisions
+  const filteredDivisions = (division_monitoring || []).filter(div => {
+    const isDireksi = Boolean(div.is_direksi || div.division?.startsWith('Direktur'));
+    if (divisionFilter === 'direksi' && !isDireksi) return false;
+    if (divisionFilter === 'divisi' && isDireksi) return false;
+    if (divisionSearch) {
+      return (div.division || '').toLowerCase().includes(divisionSearch.toLowerCase().trim());
+    }
+    return true;
+  });
 
   const SECURITY_PIE_COLORS = ['#059669', '#d97706', '#dc2626'];
   const securityPieData = [
@@ -390,7 +405,7 @@ const AdminDashboard = () => {
         marginBottom: 28
       }}>
         <StatCard
-          title="Tamu Direksi & Eksekutif"
+          title="Jajaran Direksi (5 Direktur)"
           value={key_divisions?.direksi?.total || 0}
           icon={Briefcase}
           color="purple"
@@ -398,28 +413,28 @@ const AdminDashboard = () => {
           onClick={() => handleCardClick('direksi')}
         />
         <StatCard
-          title="Divisi TI & Sistem Info"
+          title="Divisi Transformasi Digital"
           value={key_divisions?.ti?.total || 0}
           icon={Sparkles}
           color="blue"
           subtext={`${key_divisions?.ti?.currently_in || 0} aktif • ${key_divisions?.ti?.today || 0} hari ini`}
-          onClick={() => handleCardClick('division', { division: key_divisions?.ti?.division || 'IT Infrastructure' })}
+          onClick={() => handleCardClick('division', { division: 'Divisi Transformasi Digital' })}
         />
         <StatCard
-          title="Divisi Keuangan & Anggaran"
+          title="Divisi Keuangan Strategis"
           value={key_divisions?.keuangan?.total || 0}
           icon={TrendingUp}
           color="green"
           subtext={`${key_divisions?.keuangan?.currently_in || 0} aktif • ${key_divisions?.keuangan?.today || 0} hari ini`}
-          onClick={() => handleCardClick('division', { division: key_divisions?.keuangan?.division || 'Keuangan' })}
+          onClick={() => handleCardClick('division', { division: 'Divisi Keuangan Strategis dan Anggaran' })}
         />
         <StatCard
-          title="Divisi Pengadaan & SDM"
+          title="Divisi Pengadaan dan Umum"
           value={key_divisions?.pengadaan?.total || 0}
           icon={Users}
           color="amber"
           subtext={`${key_divisions?.pengadaan?.currently_in || 0} aktif • ${key_divisions?.pengadaan?.today || 0} hari ini`}
-          onClick={() => handleCardClick('division', { division: key_divisions?.pengadaan?.division || 'Pengadaan' })}
+          onClick={() => handleCardClick('division', { division: 'Divisi Pengadaan dan Umum' })}
         />
       </div>
 
@@ -659,91 +674,240 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Tabel Rekapan Seluruh Divisi & Lantai */}
+        {/* Tabel Rekapan Seluruh 19 Divisi Resmi & Jajaran Direksi */}
         {division_monitoring && division_monitoring.length > 0 && (
           <div className="glass-card" style={{ marginTop: 16, padding: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
               <div>
-                <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
-                  Matriks Rekapan Seluruh Divisi & Lokasi Lantai
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>Matriks Rekapan 19 Divisi Resmi & Jajaran Direksi</span>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: 12 }}>
+                    {filteredDivisions.length} Unit Kerja
+                  </span>
                 </h4>
                 <p style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                  Jumlah total kunjungan, tamu aktif, dan sebaran lantai tujuan masing-masing divisi
+                  Monitoring seluruh 19 divisi & dewan direktur: sebaran lantai, status aktif saat ini, dan akumulasi kunjungan
                 </p>
+              </div>
+
+              {/* Filter Tabs & Search */}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: 3, borderRadius: 8 }}>
+                  <button
+                    onClick={() => setDivisionFilter('all')}
+                    style={{
+                      border: 'none',
+                      background: divisionFilter === 'all' ? '#ffffff' : 'transparent',
+                      color: divisionFilter === 'all' ? '#0f172a' : '#64748b',
+                      fontWeight: divisionFilter === 'all' ? 700 : 500,
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      boxShadow: divisionFilter === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Semua (19)
+                  </button>
+                  <button
+                    onClick={() => setDivisionFilter('direksi')}
+                    style={{
+                      border: 'none',
+                      background: divisionFilter === 'direksi' ? '#ffffff' : 'transparent',
+                      color: divisionFilter === 'direksi' ? '#7c3aed' : '#64748b',
+                      fontWeight: divisionFilter === 'direksi' ? 700 : 500,
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      boxShadow: divisionFilter === 'direksi' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    👑 Jajaran Direktur (5)
+                  </button>
+                  <button
+                    onClick={() => setDivisionFilter('divisi')}
+                    style={{
+                      border: 'none',
+                      background: divisionFilter === 'divisi' ? '#ffffff' : 'transparent',
+                      color: divisionFilter === 'divisi' ? '#0284c7' : '#64748b',
+                      fontWeight: divisionFilter === 'divisi' ? 700 : 500,
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      boxShadow: divisionFilter === 'divisi' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    🏢 Divisi & PMO (14)
+                  </button>
+                </div>
+
+                <div style={{ position: 'relative' }}>
+                  <Search size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    placeholder="Cari nama divisi..."
+                    value={divisionSearch}
+                    onChange={(e) => setDivisionSearch(e.target.value)}
+                    style={{
+                      padding: '4px 8px 4px 28px',
+                      fontSize: '0.75rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 6,
+                      outline: 'none',
+                      width: 160
+                    }}
+                  />
+                  {divisionSearch && (
+                    <button
+                      onClick={() => setDivisionSearch('')}
+                      style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="table-container" style={{ maxHeight: 280, overflowY: 'auto' }}>
+            <div className="table-container" style={{ maxHeight: 380, overflowY: 'auto' }}>
               <table className="custom-table">
                 <thead>
                   <tr>
-                    <th>Divisi / Unit Kerja</th>
+                    <th style={{ width: 40, textAlign: 'center' }}>#</th>
+                    <th>Divisi / Jajaran Direksi</th>
+                    <th>Kategori</th>
                     <th>Sebaran Lantai</th>
                     <th>Sedang Aktif</th>
+                    <th>Hari Ini</th>
                     <th>Total Tamu</th>
                     <th style={{ textAlign: 'right' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {division_monitoring.map((div, idx) => (
-                    <tr key={idx}>
-                      <td>
-                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{div.division}</div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {div.floors && div.floors.length > 0 ? (
-                            div.floors.map((fl, fIdx) => (
-                              <span key={fIdx} style={{
+                  {filteredDivisions.length > 0 ? (
+                    filteredDivisions.map((div, idx) => {
+                      const isDirektur = Boolean(div.is_direksi || div.division?.startsWith('Direktur'));
+                      const isPmo = Boolean(div.division?.startsWith('PMO'));
+                      return (
+                        <tr key={idx}>
+                          <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
+                            {idx + 1}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, color: '#0f172a' }}>{div.division}</div>
+                          </td>
+                          <td>
+                            {isDirektur ? (
+                              <span style={{
+                                fontSize: '0.6875rem',
+                                fontWeight: 700,
+                                background: '#faf5ff',
+                                color: '#7c3aed',
+                                border: '1px solid #ddd6fe',
+                                padding: '1px 6px',
+                                borderRadius: 4
+                              }}>
+                                👑 Direksi
+                              </span>
+                            ) : isPmo ? (
+                              <span style={{
+                                fontSize: '0.6875rem',
+                                fontWeight: 700,
+                                background: '#fffbeb',
+                                color: '#b45309',
+                                border: '1px solid #fde68a',
+                                padding: '1px 6px',
+                                borderRadius: 4
+                              }}>
+                                💼 PMO
+                              </span>
+                            ) : (
+                              <span style={{
                                 fontSize: '0.6875rem',
                                 fontWeight: 600,
-                                background: '#f1f5f9',
-                                color: '#475569',
+                                background: '#f0f9ff',
+                                color: '#0369a1',
+                                border: '1px solid #bae6fd',
                                 padding: '1px 6px',
-                                borderRadius: 4,
-                                border: '1px solid #cbd5e1'
+                                borderRadius: 4
                               }}>
-                                {fl.floor} ({fl.total})
+                                🏢 Divisi
                               </span>
-                            ))
-                          ) : (
-                            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        {div.currently_in > 0 ? (
-                          <span style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            color: '#059669',
-                            background: '#dcfce7',
-                            padding: '2px 8px',
-                            borderRadius: 6
-                          }}>
-                            {div.currently_in} Aktif
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>0</span>
-                        )}
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.875rem' }}>
-                          {div.total}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          onClick={() => handleCardClick('division', { division: div.division })}
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '3px 8px', fontSize: '0.75rem' }}
-                          title={`Lihat tamu ${div.division}`}
-                        >
-                          <Eye size={13} />
-                        </button>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {div.floors && div.floors.length > 0 ? (
+                                div.floors.map((fl, fIdx) => (
+                                  <span key={fIdx} style={{
+                                    fontSize: '0.6875rem',
+                                    fontWeight: 600,
+                                    background: '#f1f5f9',
+                                    color: '#475569',
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    border: '1px solid #cbd5e1'
+                                  }}>
+                                    {fl.floor} ({fl.total})
+                                  </span>
+                                ))
+                              ) : (
+                                <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            {div.currently_in > 0 ? (
+                              <span style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: '#059669',
+                                background: '#dcfce7',
+                                padding: '2px 8px',
+                                borderRadius: 6
+                              }}>
+                                {div.currently_in} Aktif
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>0</span>
+                            )}
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.8125rem', color: '#475569', fontWeight: div.today > 0 ? 700 : 400 }}>
+                              {div.today || 0}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.875rem' }}>
+                              {div.total}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              onClick={() => handleCardClick('division', { division: div.division })}
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                              title={`Lihat rincian tamu ${div.division}`}
+                            >
+                              <Eye size={13} />
+                              <span style={{ marginLeft: 4 }}>Lihat</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: '0.8125rem' }}>
+                        Tidak ditemukan divisi dengan kata kunci "{divisionSearch}"
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>

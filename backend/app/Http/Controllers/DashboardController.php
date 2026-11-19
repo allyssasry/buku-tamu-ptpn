@@ -147,112 +147,246 @@ class DashboardController extends Controller
             'floor_16' => $findFloorData('16', 'Lantai 16 (Rooftop)'),
         ];
 
-        // Detailed Division & Direksi Monitoring
-        $rawDivisionRows = DB::table('guests')
-            ->select(
-                'destination_division as division',
-                DB::raw('COUNT(*) as total'),
-                DB::raw("COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in"),
-                DB::raw("COALESCE(SUM(CASE WHEN DATE(submitted_at) = '$today' THEN 1 ELSE 0 END), 0) as today"),
-                DB::raw("COALESCE(SUM(CASE WHEN submitted_at >= '$startOfMonth' THEN 1 ELSE 0 END), 0) as this_month")
-            )
-            ->whereNotNull('destination_division')
-            ->where('destination_division', '!=', '')
-            ->groupBy('destination_division')
-            ->orderByDesc('currently_in')
-            ->orderByDesc('total')
+        // 19 Official Divisions & Directors requested by user
+        $officialDivisions = [
+            'Direktur SDM dan Umum',
+            'Direktur Keuangan dan Manajemen Risiko',
+            'Direktur Aset',
+            'Direktur Produksi dan Pengembangan',
+            'Direktur Bisnis',
+            'Divisi Akuntansi dan Perpajakan',
+            'Divisi Aneka Tanaman',
+            'Divisi Hubungan Kelembagaan dan Hukum',
+            'Divisi Manajemen Risiko',
+            'Divisi Keuangan Strategis dan Anggaran',
+            'Divisi Kelapa Sawit dan Karet',
+            'Divisi Manajemen Aset',
+            'Divisi Strategi dan Pengembangan SDM',
+            'Divisi Operasional SDM',
+            'Divisi Pengadaan dan Umum',
+            'PMO Pengembangan Komoditi dan Hilirisasi',
+            'Divisi Transformasi Digital',
+            'Divisi Pemasaran dan Penjualan',
+            'Divisi Strategi dan Manajemen Kinerja Korporasi',
+        ];
+
+        // Fetch all active guests with floor & division for accurate mapping
+        $allGuestDivRows = DB::table('guests')
+            ->select('destination_division', 'destination_floor', 'status', 'submitted_at', 'meeting_with')
             ->get();
 
-        $divisionMonitoring = $rawDivisionRows->map(function ($item) use ($floorsByDivision) {
-            return [
-                'division' => $item->division,
-                'total' => (int) $item->total,
-                'currently_in' => (int) $item->currently_in,
-                'today' => (int) $item->today,
-                'this_month' => (int) $item->this_month,
-                'floors' => $floorsByDivision[$item->division] ?? [],
+        $divisionStats = [];
+        foreach ($officialDivisions as $div) {
+            $divisionStats[$div] = [
+                'division' => $div,
+                'is_direksi' => str_starts_with($div, 'Direktur'),
+                'total' => 0,
+                'currently_in' => 0,
+                'today' => 0,
+                'this_month' => 0,
+                'floors' => [],
             ];
-        })->values();
+        }
 
-        // Direksi aggregate
-        $direksiRow = DB::table('guests')->selectRaw("
-            COUNT(*) as total,
-            COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in,
-            COALESCE(SUM(CASE WHEN DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as today,
-            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_month
-        ", [$today, $startOfMonth])
-        ->where(function ($q) {
-            $q->where('destination_division', 'LIKE', '%Direksi%')
-              ->orWhere('meeting_with', 'LIKE', '%Direkt%');
-        })->first();
+        // Helper to match a guest's destination_division or meeting_with to one of the 19 official divisions
+        $mapToOfficialDivision = function ($destDiv, $meetingWith) use ($officialDivisions) {
+            $destTrim = trim($destDiv ?? '');
+            $meetTrim = trim($meetingWith ?? '');
 
-        // TI aggregate
-        $tiRow = DB::table('guests')->selectRaw("
-            COUNT(*) as total,
-            COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in,
-            COALESCE(SUM(CASE WHEN DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as today,
-            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_month
-        ", [$today, $startOfMonth])
-        ->where(function ($q) {
-            $q->where('destination_division', 'LIKE', '%IT%')
-              ->orWhere('destination_division', 'LIKE', '%Teknologi%')
-              ->orWhere('destination_division', 'LIKE', '%Sistem%');
-        })->first();
+            // 1. Direct exact match
+            foreach ($officialDivisions as $od) {
+                if (strcasecmp($destTrim, $od) === 0) {
+                    return $od;
+                }
+            }
 
-        // Keuangan aggregate
-        $keuanganRow = DB::table('guests')->selectRaw("
-            COUNT(*) as total,
-            COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in,
-            COALESCE(SUM(CASE WHEN DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as today,
-            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_month
-        ", [$today, $startOfMonth])
-        ->where(function ($q) {
-            $q->where('destination_division', 'LIKE', '%Keuangan%')
-              ->orWhere('destination_division', 'LIKE', '%Anggaran%')
-              ->orWhere('destination_division', 'LIKE', '%Akuntansi%');
-        })->first();
+            // 2. Match specific Direktur
+            if (str_contains(strtolower($destTrim), 'sdm') && (str_contains(strtolower($destTrim), 'direkt') || str_contains(strtolower($meetTrim), 'direkt'))) {
+                return 'Direktur SDM dan Umum';
+            }
+            if (str_contains(strtolower($destTrim), 'keuangan') && (str_contains(strtolower($destTrim), 'direkt') || str_contains(strtolower($meetTrim), 'direkt'))) {
+                return 'Direktur Keuangan dan Manajemen Risiko';
+            }
+            if (str_contains(strtolower($destTrim), 'aset') && (str_contains(strtolower($destTrim), 'direkt') || str_contains(strtolower($meetTrim), 'direkt'))) {
+                return 'Direktur Aset';
+            }
+            if ((str_contains(strtolower($destTrim), 'produksi') || str_contains(strtolower($destTrim), 'pengembangan')) && (str_contains(strtolower($destTrim), 'direkt') || str_contains(strtolower($meetTrim), 'direkt'))) {
+                return 'Direktur Produksi dan Pengembangan';
+            }
+            if (str_contains(strtolower($destTrim), 'bisnis') && (str_contains(strtolower($destTrim), 'direkt') || str_contains(strtolower($meetTrim), 'direkt'))) {
+                return 'Direktur Bisnis';
+            }
 
-        // Pengadaan & SDM aggregate
-        $pengadaanRow = DB::table('guests')->selectRaw("
-            COUNT(*) as total,
-            COALESCE(SUM(CASE WHEN status = 'Sedang Berkunjung' THEN 1 ELSE 0 END), 0) as currently_in,
-            COALESCE(SUM(CASE WHEN DATE(submitted_at) = ? THEN 1 ELSE 0 END), 0) as today,
-            COALESCE(SUM(CASE WHEN submitted_at >= ? THEN 1 ELSE 0 END), 0) as this_month
-        ", [$today, $startOfMonth])
-        ->where(function ($q) {
-            $q->where('destination_division', 'LIKE', '%Pengadaan%')
-              ->orWhere('destination_division', 'LIKE', '%SDM%')
-              ->orWhere('destination_division', 'LIKE', '%Human Capital%');
-        })->first();
+            // 3. Match divisions keywords
+            $lookupMap = [
+                'akuntansi' => 'Divisi Akuntansi dan Perpajakan',
+                'pajak' => 'Divisi Akuntansi dan Perpajakan',
+                'aneka tanaman' => 'Divisi Aneka Tanaman',
+                'hukum' => 'Divisi Hubungan Kelembagaan dan Hukum',
+                'legal' => 'Divisi Hubungan Kelembagaan dan Hukum',
+                'kelembagaan' => 'Divisi Hubungan Kelembagaan dan Hukum',
+                'manajemen risiko' => 'Divisi Manajemen Risiko',
+                'keuangan strategis' => 'Divisi Keuangan Strategis dan Anggaran',
+                'anggaran' => 'Divisi Keuangan Strategis dan Anggaran',
+                'keuangan' => 'Divisi Keuangan Strategis dan Anggaran',
+                'sawit' => 'Divisi Kelapa Sawit dan Karet',
+                'karet' => 'Divisi Kelapa Sawit dan Karet',
+                'manajemen aset' => 'Divisi Manajemen Aset',
+                'strategi dan pengembangan sdm' => 'Divisi Strategi dan Pengembangan SDM',
+                'strategi sdm' => 'Divisi Strategi dan Pengembangan SDM',
+                'operasional sdm' => 'Divisi Operasional SDM',
+                'human capital' => 'Divisi Operasional SDM',
+                'pengadaan' => 'Divisi Pengadaan dan Umum',
+                'umum' => 'Divisi Pengadaan dan Umum',
+                'pmo' => 'PMO Pengembangan Komoditi dan Hilirisasi',
+                'komoditi' => 'PMO Pengembangan Komoditi dan Hilirisasi',
+                'hilirisasi' => 'PMO Pengembangan Komoditi dan Hilirisasi',
+                'transformasi' => 'Divisi Transformasi Digital',
+                'digital' => 'Divisi Transformasi Digital',
+                'it infrastructure' => 'Divisi Transformasi Digital',
+                'it' => 'Divisi Transformasi Digital',
+                'ti' => 'Divisi Transformasi Digital',
+                'pemasaran' => 'Divisi Pemasaran dan Penjualan',
+                'penjualan' => 'Divisi Pemasaran dan Penjualan',
+                'kinerja' => 'Divisi Strategi dan Manajemen Kinerja Korporasi',
+            ];
+
+            $lower = strtolower($destTrim);
+            foreach ($lookupMap as $keyword => $targetOfficial) {
+                if (str_contains($lower, $keyword)) {
+                    return $targetOfficial;
+                }
+            }
+
+            // Check if matches generic 'direksi'
+            if (str_contains($lower, 'direks')) {
+                return 'Direktur SDM dan Umum';
+            }
+
+            return $destTrim ?: 'Divisi Pengadaan dan Umum';
+        };
+
+        $floorCountsByDiv = [];
+
+        foreach ($allGuestDivRows as $row) {
+            $mapped = $mapToOfficialDivision($row->destination_division, $row->meeting_with);
+            if (!isset($divisionStats[$mapped])) {
+                $divisionStats[$mapped] = [
+                    'division' => $mapped,
+                    'is_direksi' => str_starts_with($mapped, 'Direktur'),
+                    'total' => 0,
+                    'currently_in' => 0,
+                    'today' => 0,
+                    'this_month' => 0,
+                    'floors' => [],
+                ];
+            }
+
+            $divisionStats[$mapped]['total']++;
+            if ($row->status === 'Sedang Berkunjung') {
+                $divisionStats[$mapped]['currently_in']++;
+            }
+            if ($row->submitted_at && Carbon::parse($row->submitted_at)->isToday()) {
+                $divisionStats[$mapped]['today']++;
+            }
+            if ($row->submitted_at && Carbon::parse($row->submitted_at)->gte(Carbon::now()->startOfMonth())) {
+                $divisionStats[$mapped]['this_month']++;
+            }
+
+            if (!empty($row->destination_floor) && $row->destination_floor !== '-') {
+                $fl = $row->destination_floor;
+                if (!isset($floorCountsByDiv[$mapped])) {
+                    $floorCountsByDiv[$mapped] = [];
+                }
+                $floorCountsByDiv[$mapped][$fl] = ($floorCountsByDiv[$mapped][$fl] ?? 0) + 1;
+            }
+        }
+
+        // Attach floor breakdown
+        foreach ($divisionStats as $divName => &$stat) {
+            $floorsList = [];
+            if (isset($floorCountsByDiv[$divName])) {
+                foreach ($floorCountsByDiv[$divName] as $flName => $flCount) {
+                    $floorsList[] = [
+                        'floor' => $flName,
+                        'total' => $flCount,
+                    ];
+                }
+            }
+            $stat['floors'] = $floorsList;
+        }
+        unset($stat);
+
+        // Sort so all 19 official divisions appear in user's specified order
+        $orderedDivisionMonitoring = [];
+        foreach ($officialDivisions as $od) {
+            if (isset($divisionStats[$od])) {
+                $orderedDivisionMonitoring[] = $divisionStats[$od];
+                unset($divisionStats[$od]);
+            }
+        }
+        foreach ($divisionStats as $remaining) {
+            $orderedDivisionMonitoring[] = $remaining;
+        }
+
+        $divisionMonitoring = $orderedDivisionMonitoring;
+
+        // Calculate Direksi group aggregate (sum of all 5 Direktur)
+        $direksiTotal = 0;
+        $direksiCurrent = 0;
+        $direksiToday = 0;
+        $direksiMonth = 0;
+        foreach ($divisionMonitoring as $item) {
+            if ($item['is_direksi']) {
+                $direksiTotal += $item['total'];
+                $direksiCurrent += $item['currently_in'];
+                $direksiToday += $item['today'];
+                $direksiMonth += $item['this_month'];
+            }
+        }
+
+        // Helper to find division data from ordered list
+        $getDivStat = function ($divName) use ($orderedDivisionMonitoring) {
+            foreach ($orderedDivisionMonitoring as $dm) {
+                if ($dm['division'] === $divName) {
+                    return $dm;
+                }
+            }
+            return ['total' => 0, 'currently_in' => 0, 'today' => 0, 'this_month' => 0];
+        };
+
+        $tiStat = $getDivStat('Divisi Transformasi Digital');
+        $keuStat = $getDivStat('Divisi Keuangan Strategis dan Anggaran');
+        $pengadaanStat = $getDivStat('Divisi Pengadaan dan Umum');
 
         $keyDivisions = [
             'direksi' => [
-                'division' => 'Direksi & Eksekutif',
-                'total' => (int) ($direksiRow->total ?? 0),
-                'currently_in' => (int) ($direksiRow->currently_in ?? 0),
-                'today' => (int) ($direksiRow->today ?? 0),
-                'this_month' => (int) ($direksiRow->this_month ?? 0),
+                'division' => 'Jajaran Direksi (5 Direktur)',
+                'total' => $direksiTotal,
+                'currently_in' => $direksiCurrent,
+                'today' => $direksiToday,
+                'this_month' => $direksiMonth,
             ],
             'ti' => [
-                'division' => 'Divisi TI & Sistem Informasi',
-                'total' => (int) ($tiRow->total ?? 0),
-                'currently_in' => (int) ($tiRow->currently_in ?? 0),
-                'today' => (int) ($tiRow->today ?? 0),
-                'this_month' => (int) ($tiRow->this_month ?? 0),
+                'division' => 'Divisi Transformasi Digital',
+                'total' => (int) ($tiStat['total'] ?? 0),
+                'currently_in' => (int) ($tiStat['currently_in'] ?? 0),
+                'today' => (int) ($tiStat['today'] ?? 0),
+                'this_month' => (int) ($tiStat['this_month'] ?? 0),
             ],
             'keuangan' => [
-                'division' => 'Divisi Keuangan & Anggaran',
-                'total' => (int) ($keuanganRow->total ?? 0),
-                'currently_in' => (int) ($keuanganRow->currently_in ?? 0),
-                'today' => (int) ($keuanganRow->today ?? 0),
-                'this_month' => (int) ($keuanganRow->this_month ?? 0),
+                'division' => 'Divisi Keuangan Strategis dan Anggaran',
+                'total' => (int) ($keuStat['total'] ?? 0),
+                'currently_in' => (int) ($keuStat['currently_in'] ?? 0),
+                'today' => (int) ($keuStat['today'] ?? 0),
+                'this_month' => (int) ($keuStat['this_month'] ?? 0),
             ],
             'pengadaan' => [
-                'division' => 'Divisi Pengadaan & SDM',
-                'total' => (int) ($pengadaanRow->total ?? 0),
-                'currently_in' => (int) ($pengadaanRow->currently_in ?? 0),
-                'today' => (int) ($pengadaanRow->today ?? 0),
-                'this_month' => (int) ($pengadaanRow->this_month ?? 0),
+                'division' => 'Divisi Pengadaan dan Umum',
+                'total' => (int) ($pengadaanStat['total'] ?? 0),
+                'currently_in' => (int) ($pengadaanStat['currently_in'] ?? 0),
+                'today' => (int) ($pengadaanStat['today'] ?? 0),
+                'this_month' => (int) ($pengadaanStat['this_month'] ?? 0),
             ],
         ];
 
@@ -613,27 +747,43 @@ class DashboardController extends Controller
             case 'direksi':
                 $items = Guest::select($guestColumns)
                     ->where(function ($q) {
-                        $q->where('destination_division', 'LIKE', '%Direksi%')
+                        $q->where('destination_division', 'LIKE', '%Direkt%')
+                          ->orWhere('destination_division', 'LIKE', '%Direksi%')
                           ->orWhere('meeting_with', 'LIKE', '%Direkt%');
                     })
                     ->latest('submitted_at')
                     ->get();
-                $title = 'Monitoring Kunjungan Direksi & Eksekutif';
-                $subtitle = 'Rincian seluruh tamu audiensi pimpinan dan rapat bersama jajaran Direksi';
+                $title = 'Monitoring Kunjungan Jajaran Direksi';
+                $subtitle = 'Rincian seluruh tamu audiensi pimpinan dan rapat bersama Jajaran Direktur (5 Direksi)';
                 $category = 'guest';
-                $linkTo = '/guests?search=Direksi';
+                $linkTo = '/guests?search=Direktur';
                 break;
 
             case 'division':
-                $targetDiv = $request->input('division', 'Direksi');
+                $targetDiv = $request->input('division', 'Divisi Pengadaan dan Umum');
                 $items = Guest::select($guestColumns)
                     ->where(function ($q) use ($targetDiv) {
                         $q->where('destination_division', $targetDiv)
                           ->orWhere('destination_division', 'LIKE', "%{$targetDiv}%");
+
+                        // Keyword match for legacy data
+                        if (str_contains($targetDiv, 'Transformasi Digital')) {
+                            $q->orWhere('destination_division', 'LIKE', '%IT%');
+                        } elseif (str_contains($targetDiv, 'Keuangan')) {
+                            $q->orWhere('destination_division', 'LIKE', '%Keuangan%');
+                        } elseif (str_contains($targetDiv, 'Hukum')) {
+                            $q->orWhere('destination_division', 'LIKE', '%Legal%');
+                        } elseif (str_contains($targetDiv, 'Operasional SDM')) {
+                            $q->orWhere('destination_division', 'LIKE', '%Human Capital%');
+                        } elseif (str_contains($targetDiv, 'Direktur')) {
+                            $short = str_replace('Direktur ', '', $targetDiv);
+                            $q->orWhere('meeting_with', 'LIKE', "%{$short}%")
+                              ->orWhere('destination_division', 'LIKE', "%{$short}%");
+                        }
                     })
                     ->latest('submitted_at')
                     ->get();
-                $title = "Monitoring Tamu Divisi: {$targetDiv}";
+                $title = "Monitoring Tamu: {$targetDiv}";
                 $subtitle = "Rincian seluruh tamu yang memiliki agenda kunjungan ke {$targetDiv}";
                 $category = 'guest';
                 $linkTo = '/guests?search=' . urlencode($targetDiv);
