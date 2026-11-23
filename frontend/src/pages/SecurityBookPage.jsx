@@ -132,13 +132,21 @@ const SecurityBookPage = () => {
 
   const isFiltered = statusFilter !== 'all' || buildingFilter !== 'all' || areaFilter !== 'all' || dateFilter !== '' || search !== '';
   const selectedBuilding = buildings.find(b => String(b.id) === String(buildingFilter));
+
+  const getAreaBuildingId = (a) => {
+    if (a.building_id) return String(a.building_id);
+    if (a.building?.id) return String(a.building.id);
+    const graha = buildings.find(b => b.name?.toLowerCase().includes('graha nusa tiga'));
+    return String(graha?.id || buildings[0]?.id || '1');
+  };
+
   const filteredAreas = buildingFilter !== 'all'
-    ? areas.filter(a => String(a.building_id || a.building?.id) === String(buildingFilter))
+    ? areas.filter(a => getAreaBuildingId(a) === String(buildingFilter))
     : areas;
 
   const handleBuildingChange = (selectedBuildingId) => {
     const matchingAreas = selectedBuildingId
-      ? areas.filter(a => String(a.building_id || a.building?.id) === String(selectedBuildingId))
+      ? areas.filter(a => getAreaBuildingId(a) === String(selectedBuildingId))
       : areas;
 
     setFormData(prev => ({
@@ -149,9 +157,9 @@ const SecurityBookPage = () => {
   };
 
   const handleOpenCreateModal = () => {
-    const defaultBuildingId = formData.building_id || buildings[0]?.id || '';
+    const defaultBuildingId = formData.building_id || buildings[0]?.id || '1';
     const matchingAreas = defaultBuildingId
-      ? areas.filter(a => String(a.building_id || a.building?.id) === String(defaultBuildingId))
+      ? areas.filter(a => getAreaBuildingId(a) === String(defaultBuildingId))
       : areas;
 
     setFormData({
@@ -619,13 +627,13 @@ const SecurityBookPage = () => {
                   >
                     <option value="">-- Pilih Area Kerja Gedung --</option>
                     {(formData.building_id
-                      ? areas.filter(a => String(a.building_id || a.building?.id) === String(formData.building_id))
+                      ? areas.filter(a => getAreaBuildingId(a) === String(formData.building_id))
                       : areas
                     ).map((a) => (
                       <option key={a.id} value={a.id}>{a.name} ({a.floor})</option>
                     ))}
                   </select>
-                  {formData.building_id && areas.filter(a => String(a.building_id || a.building?.id) === String(formData.building_id)).length === 0 && (
+                  {formData.building_id && areas.filter(a => getAreaBuildingId(a) === String(formData.building_id)).length === 0 && (
                     <span style={{ fontSize: '0.75rem', color: '#d97706', marginTop: 4, display: 'block' }}>
                       ⚠️ Belum ada checkpoint area yang terdaftar untuk gedung ini di Master Area.
                     </span>

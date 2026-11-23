@@ -10,6 +10,11 @@ class AreaController extends Controller
 {
     public function index(Request $request)
     {
+        // Auto-heal: Hubungkan area yang belum memiliki building_id ke gedung Graha Nusa Tiga
+        $defaultBuildingId = \App\Models\Building::where('name', 'like', '%Graha Nusa Tiga%')->value('id') 
+            ?: (\App\Models\Building::first()?->id ?: 1);
+        Area::whereNull('building_id')->update(['building_id' => $defaultBuildingId]);
+
         $query = Area::with('building');
 
         if ($request->boolean('active_only', false)) {
@@ -48,8 +53,13 @@ class AreaController extends Controller
             'active' => 'boolean',
         ]);
 
+        $buildingId = $request->filled('building_id') ? $request->building_id : (
+            \App\Models\Building::where('name', 'like', '%Graha Nusa Tiga%')->value('id') 
+            ?: (\App\Models\Building::first()?->id ?: 1)
+        );
+
         $area = Area::create([
-            'building_id' => $request->building_id,
+            'building_id' => $buildingId,
             'name' => $request->name,
             'floor' => $request->floor,
             'description' => $request->description,

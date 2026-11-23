@@ -76,7 +76,7 @@ const MasterAreasPage = () => {
   const handleOpenEdit = (area) => {
     setEditingArea(area);
     setFormData({
-      building_id: area.building_id || area.building?.id || '',
+      building_id: area.building_id || area.building?.id || (buildings.find(b => b.name?.toLowerCase().includes('graha nusa tiga'))?.id || buildings[0]?.id || ''),
       name: area.name,
       floor: area.floor,
       description: area.description || '',
