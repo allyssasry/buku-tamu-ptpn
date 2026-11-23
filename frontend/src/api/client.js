@@ -1,7 +1,8 @@
+
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'https://buku-tamu-backend-opal.vercel.app/api',
   timeout: 30000,
   headers: {
     'Accept': 'application/json',
@@ -20,16 +21,20 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Don't auto-redirect if we are intentionally on guest form
-      const isPublicPath = window.location.pathname === '/' || window.location.pathname.startsWith('/guest');
+      const isPublicPath =
+        window.location.pathname === '/' ||
+        window.location.pathname.startsWith('/guest');
+
       if (!isPublicPath) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
       }
     }
+
     return Promise.reject(error);
   }
 );
