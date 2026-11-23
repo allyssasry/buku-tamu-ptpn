@@ -77,6 +77,7 @@ const GuestForm = () => {
 
     const payload = isMagang ? {
       ...formData,
+      notes: null,
       institution: formData.institution.trim() || 'Siswa / Mahasiswa Magang',
       purpose: formData.purpose.trim() || 'Kegiatan Magang / PKL',
       meeting_with: formData.meeting_with.trim() || `Pembimbing ${formData.destination_division}`,
@@ -86,6 +87,7 @@ const GuestForm = () => {
       card_number: null,
     } : {
       ...formData,
+      notes: null,
       destination_floor: '-',
       identity_number: null,
       card_number: null,
@@ -521,17 +523,6 @@ const GuestForm = () => {
                         <option key={i} value={div}>{div}</option>
                       ))}
                     </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Catatan Tambahan (Opsional)</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Nomor surat tugas / info tambahan"
-                      value={formData.notes}
-                      onChange={(e) => handleChange('notes', e.target.value)}
-                    />
                   </div>
                 </div>
               </div>

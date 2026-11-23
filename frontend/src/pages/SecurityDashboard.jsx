@@ -15,7 +15,8 @@ import {
   Building,
   LogOut,
   CreditCard,
-  GraduationCap
+  GraduationCap,
+  FileText
 } from 'lucide-react';
 
 const SecurityDashboard = () => {
@@ -30,6 +31,7 @@ const SecurityDashboard = () => {
   const [verifyingGuest, setVerifyingGuest] = useState(null);
   const [depositChecked, setDepositChecked] = useState(true);
   const [depositNotes, setDepositNotes] = useState('Disimpan di loker security.');
+  const [verifyGuestNotes, setVerifyGuestNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchDashboard = async () => {
@@ -58,6 +60,7 @@ const SecurityDashboard = () => {
     setVerifyingGuest(guest);
     setDepositChecked(true);
     setDepositNotes('Disimpan di loker security.');
+    setVerifyGuestNotes(guest.notes || '');
   };
 
   const submitVerify = async () => {
@@ -68,6 +71,7 @@ const SecurityDashboard = () => {
         status: 'Sedang Berkunjung',
         deposit_id: depositChecked,
         deposit_notes: depositNotes,
+        notes: verifyGuestNotes || undefined,
       });
       setVerifyingGuest(null);
       fetchDashboard();
@@ -456,6 +460,31 @@ const SecurityDashboard = () => {
                     style={{ fontSize: '0.8125rem', marginTop: 6 }}
                   />
                 )}
+              </div>
+
+              {/* Catatan Tambahan (Opsional) */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px',
+                marginTop: 12
+              }}>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <FileText size={16} style={{ color: '#047857' }} />
+                  <span>Catatan Tambahan (Opsional):</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Nomor surat tugas / info tambahan tamu..."
+                  value={verifyGuestNotes}
+                  onChange={(e) => setVerifyGuestNotes(e.target.value)}
+                  style={{ fontSize: '0.8125rem' }}
+                />
+                <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
+                  *Security dapat menginput nomor surat tugas atau catatan sebelum konfirmasi verifikasi.
+                </span>
               </div>
             </div>
             <div className="modal-footer">

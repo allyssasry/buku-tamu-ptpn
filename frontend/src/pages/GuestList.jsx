@@ -21,7 +21,8 @@ import {
   Clock,
   RotateCcw,
   X,
-  Building2
+  Building2,
+  FileText
 } from 'lucide-react';
 
 const CARD_OPTIONS = Array.from({ length: 50 }, (_, i) => String(i + 1).padStart(3, '0'));
@@ -54,6 +55,7 @@ const GuestList = () => {
     title: '',
     message: '',
     notes: '',
+    guestNotes: '',
     depositId: true,
     cardNumber: '',
     destinationFloor: 'Lantai 11',
@@ -160,6 +162,7 @@ const GuestList = () => {
         title: `Verifikasi & Check-In ${labelUser}: ${guest.name}`,
         message: `Verifikasi kedatangan dan otomatis check-in ${labelUser.toLowerCase()} ${guest.name} dari ${guest.institution} (status langsung menjadi Sedang Berkunjung). Petugas security lantai 11 memvalidasi lantai tujuan dan menyerahkan nomor kartu akses fisik.`,
         notes: 'Disimpan di loker security.',
+        guestNotes: guest.notes || '',
         depositId: true,
         cardNumber: autoCard,
         destinationFloor: defaultFloor,
@@ -172,6 +175,7 @@ const GuestList = () => {
         title: `Check-In ${labelUser}: ${guest.name}`,
         message: `Tandai ${labelUser.toLowerCase()} sebagai "Sedang Berkunjung" di area gedung?`,
         notes: 'Disimpan di loker security.',
+        guestNotes: guest.notes || '',
         depositId: true,
         cardNumber: autoCard,
         destinationFloor: defaultFloor,
@@ -204,7 +208,7 @@ const GuestList = () => {
   };
 
   const handleConfirmAction = async () => {
-    const { type, guest, depositId, notes, cardNumber, destinationFloor } = actionConfirm;
+    const { type, guest, depositId, notes, guestNotes, cardNumber, destinationFloor } = actionConfirm;
     if (!guest) return;
     setActionLoading(true);
 
@@ -214,6 +218,7 @@ const GuestList = () => {
           status: 'Sedang Berkunjung',
           deposit_id: depositId,
           deposit_notes: notes,
+          notes: guestNotes || undefined,
           card_number: cardNumber || undefined,
           destination_floor: destinationFloor || undefined,
         });
@@ -221,6 +226,7 @@ const GuestList = () => {
         await api.post(`/guests/${guest.id}/checkin`, {
           deposit_id: depositId,
           deposit_notes: notes,
+          notes: guestNotes || undefined,
           card_number: cardNumber || undefined,
           destination_floor: destinationFloor || undefined,
         });
@@ -802,6 +808,12 @@ const GuestList = () => {
                   <span className="form-label">Identitas ({selectedGuest.identity_type})</span>
                   <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{selectedGuest.identity_number || '-'}</div>
                 </div>
+                <div>
+                  <span className="form-label">Catatan Tambahan (Security)</span>
+                  <div style={{ color: '#334155', fontStyle: selectedGuest.notes ? 'normal' : 'italic' }}>
+                    {selectedGuest.notes || 'Tidak ada catatan'}
+                  </div>
+                </div>
               </div>
 
               {/* Photo Row */}
@@ -1009,6 +1021,25 @@ const GuestList = () => {
                       style={{ fontSize: '0.8125rem' }}
                     />
                   )}
+                </div>
+
+                {/* 3. Catatan Tambahan (Opsional) oleh Security */}
+                <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: 12, borderRadius: 8 }}>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <FileText size={16} style={{ color: '#047857' }} />
+                    <span>Catatan Tambahan (Opsional):</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Nomor surat tugas / info tambahan tamu..."
+                    value={actionConfirm.guestNotes || ''}
+                    onChange={(e) => setActionConfirm(p => ({ ...p, guestNotes: e.target.value }))}
+                    style={{ fontSize: '0.875rem' }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
+                    *Petugas security dapat menginput nomor surat tugas atau catatan sebelum konfirmasi verifikasi.
+                  </span>
                 </div>
               </div>
             )}

@@ -498,6 +498,10 @@ class GuestController extends Controller
             'check_in_at' => $guest->check_in_at ?? $now,
         ];
 
+        if ($request->has('notes')) {
+            $updateData['notes'] = $request->notes;
+        }
+
         if ($request->filled('destination_floor')) {
             $updateData['destination_floor'] = $request->destination_floor;
         }
@@ -577,6 +581,10 @@ class GuestController extends Controller
             'verified_at' => $guest->verified_at ?? Carbon::now(),
             'verified_by' => $guest->verified_by ?? $user->id,
         ];
+
+        if ($request->has('notes')) {
+            $updateData['notes'] = $request->notes;
+        }
 
         if ($request->filled('destination_floor')) {
             $updateData['destination_floor'] = $request->destination_floor;
