@@ -600,8 +600,12 @@ const GuestList = () => {
                     </div>
                   </td>
                   <td>
-                    <span style={{ fontSize: '0.8125rem', color: '#0284c7', fontWeight: 600 }}>
-                      {g.destination_floor}
+                    <span style={{
+                      fontSize: '0.8125rem',
+                      color: g.destination_floor && g.destination_floor !== '-' ? '#0284c7' : '#94a3b8',
+                      fontWeight: 600
+                    }}>
+                      {g.destination_floor && g.destination_floor !== '-' ? g.destination_floor : 'Menunggu Verifikasi'}
                     </span>
                   </td>
                   <td>
@@ -802,7 +806,12 @@ const GuestList = () => {
                 </div>
                 <div>
                   <span className="form-label">Lantai Tujuan</span>
-                  <div style={{ color: '#0284c7', fontWeight: 600 }}>{selectedGuest.destination_floor}</div>
+                  <div style={{
+                    color: selectedGuest.destination_floor && selectedGuest.destination_floor !== '-' ? '#0284c7' : '#d97706',
+                    fontWeight: 600
+                  }}>
+                    {selectedGuest.destination_floor && selectedGuest.destination_floor !== '-' ? selectedGuest.destination_floor : 'Menunggu Verifikasi Security (Lt. 11)'}
+                  </div>
                 </div>
                 <div>
                   <span className="form-label">Identitas ({selectedGuest.identity_type})</span>

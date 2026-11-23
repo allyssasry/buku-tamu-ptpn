@@ -16,7 +16,8 @@ import {
   LogOut,
   CreditCard,
   GraduationCap,
-  FileText
+  FileText,
+  Building2
 } from 'lucide-react';
 
 const SecurityDashboard = () => {
@@ -32,6 +33,7 @@ const SecurityDashboard = () => {
   const [depositChecked, setDepositChecked] = useState(true);
   const [depositNotes, setDepositNotes] = useState('Disimpan di loker security.');
   const [verifyGuestNotes, setVerifyGuestNotes] = useState('');
+  const [destinationFloor, setDestinationFloor] = useState('Lantai 11');
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchDashboard = async () => {
@@ -61,6 +63,11 @@ const SecurityDashboard = () => {
     setDepositChecked(true);
     setDepositNotes('Disimpan di loker security.');
     setVerifyGuestNotes(guest.notes || '');
+    const isMagang = guest.category === 'magang';
+    const defaultFloor = guest.destination_floor && guest.destination_floor !== '-'
+      ? guest.destination_floor
+      : (isMagang ? 'Lantai Penempatan' : 'Lantai 11');
+    setDestinationFloor(defaultFloor);
   };
 
   const submitVerify = async () => {
@@ -72,6 +79,8 @@ const SecurityDashboard = () => {
         deposit_id: depositChecked,
         deposit_notes: depositNotes,
         notes: verifyGuestNotes || undefined,
+        destination_floor: destinationFloor || undefined,
+        card_number: verifyingGuest.card_number || undefined,
       });
       setVerifyingGuest(null);
       fetchDashboard();
@@ -271,7 +280,9 @@ const SecurityDashboard = () => {
                         )}
                       </td>
                       <td>
-                        <div style={{ fontSize: '0.8125rem' }}>{g.destination_floor}</div>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: g.destination_floor && g.destination_floor !== '-' ? '#0284c7' : '#94a3b8' }}>
+                          {g.destination_floor && g.destination_floor !== '-' ? g.destination_floor : 'Menunggu Verifikasi'}
+                        </div>
                         <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{g.destination_division}</div>
                       </td>
                       <td>
@@ -399,20 +410,20 @@ const SecurityDashboard = () => {
             <div className="modal-body">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Instansi:</div>
-                  <div style={{ fontWeight: 600 }}>{verifyingGuest.institution}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Instansi / Perusahaan:</div>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{verifyingGuest.institution || '-'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Tujuan:</div>
-                  <div style={{ fontWeight: 600 }}>{verifyingGuest.destination_floor} ({verifyingGuest.destination_division})</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Divisi / Unit Tujuan:</div>
+                  <div style={{ fontWeight: 700, color: '#047857' }}>{verifyingGuest.destination_division || '-'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Bertemu:</div>
-                  <div>{verifyingGuest.meeting_with}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Bertemu Dengan:</div>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{verifyingGuest.meeting_with || '-'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>No. Identitas ({verifyingGuest.identity_type}):</div>
-                  <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{verifyingGuest.identity_number}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Jenis Identitas:</div>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{verifyingGuest.identity_type || 'KTP'}</div>
                 </div>
               </div>
 
@@ -430,15 +441,102 @@ const SecurityDashboard = () => {
                 </div>
               )}
 
-              {/* Penitipan ID checkbox */}
+              {/* 1. Pilihan Lantai Tujuan oleh Petugas Security */}
+              <div style={{
+                background: '#f0f9ff',
+                border: '1px solid #bae6fd',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 14px',
+                marginBottom: 12
+              }}>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0369a1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Building2 size={16} style={{ color: '#0284c7' }} />
+                    <span>Lantai Tujuan:</span>
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 4 }}>
+                    Petugas Security Lt. 11
+                  </span>
+                </label>
+                <select
+                  className="form-select"
+                  value={destinationFloor}
+                  onChange={(e) => setDestinationFloor(e.target.value)}
+                  style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}
+                >
+                  <option value="Lantai 11">Lantai 11</option>
+                  <option value="Lantai 15">Lantai 15</option>
+                  <option value="Lantai 16">Lantai 16</option>
+                  <option value="Lantai Penempatan">Lantai Penempatan (Khusus Magang)</option>
+                </select>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
+                  *Petugas security lantai 11 yang memasukkan lantai tujuan (Lantai 11, 15, atau 16) dan memberikan kartu akses.
+                </span>
+              </div>
+
+              {/* 2. Nomor Kartu Akses Fisik (Terkunci Otomatis Looping) */}
+              <div style={{
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                padding: '12px 14px',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: 12
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', fontWeight: 700, color: '#1e40af' }}>
+                    <CreditCard size={16} />
+                    <span>No. Kartu Akses Fisik (001 - 050):</span>
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 4 }}>
+                    ⚡ Otomatis Looping
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: '#ffffff',
+                  border: '1px solid #93c5fd',
+                  borderRadius: 6,
+                  fontWeight: 700,
+                  color: '#1e40af'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{
+                      padding: '2px 8px',
+                      background: verifyingGuest.category === 'magang' ? '#faf5ff' : '#eff6ff',
+                      color: verifyingGuest.category === 'magang' ? '#7e22ce' : '#1d4ed8',
+                      border: verifyingGuest.category === 'magang' ? '1px solid #d8b4fe' : '1px solid #bfdbfe',
+                      borderRadius: 4,
+                      fontSize: '0.75rem',
+                      fontWeight: 600
+                    }}>
+                      {verifyingGuest.category === 'magang' ? '🎓 Kartu Magang' : '👤 Kartu Tamu'}
+                    </span>
+                    <span style={{ fontFamily: 'monospace', fontSize: '1.125rem', letterSpacing: '0.05em' }}>
+                      {verifyingGuest.card_number || '001'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    ✓ Terkunci Otomatis
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
+                  *Nomor kartu telah dialokasikan otomatis oleh sistem (looping 001 - 050). Petugas security cukup menyerahkan kartu fisik bernomor <strong>{verifyingGuest.card_number || '001'}</strong>.
+                </span>
+              </div>
+
+              {/* 3. Penitipan ID checkbox */}
               <div style={{
                 background: '#f0fdf4',
                 border: '1px solid #bbf7d0',
                 borderRadius: 'var(--radius-md)',
-                padding: '14px',
-                marginTop: 10
+                padding: '12px 14px',
+                marginBottom: 12
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: depositChecked ? 8 : 0 }}>
                   <input
                     type="checkbox"
                     id="deposit-check"
@@ -447,7 +545,7 @@ const SecurityDashboard = () => {
                     style={{ width: 18, height: 18, accentColor: '#059669' }}
                   />
                   <label htmlFor="deposit-check" style={{ fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', color: '#065f46' }}>
-                    Catat Penitipan KTP / ID di Pos Security
+                    Titipkan KTP / ID di Pos Security
                   </label>
                 </div>
                 {depositChecked && (
@@ -462,13 +560,12 @@ const SecurityDashboard = () => {
                 )}
               </div>
 
-              {/* Catatan Tambahan (Opsional) */}
+              {/* 4. Catatan Tambahan (Opsional) */}
               <div style={{
                 background: '#f8fafc',
                 border: '1px solid #cbd5e1',
                 borderRadius: 'var(--radius-md)',
-                padding: '12px',
-                marginTop: 12
+                padding: '12px 14px'
               }}>
                 <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <FileText size={16} style={{ color: '#047857' }} />
