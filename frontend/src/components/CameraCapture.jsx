@@ -82,12 +82,28 @@ const CameraCapture = ({ label, required = false, value, onChange, placeholderTe
   const takePhoto = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
+
+    // Kompresi & resize ke resolusi maksimal 800px agar payload ringan (< 150KB) dan tidak melampaui batas serverless Vercel 4.5MB
+    const maxDim = 800;
+    let width = video.videoWidth || 640;
+    let height = video.videoHeight || 480;
+
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+    }
+
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    ctx.drawImage(video, 0, 0, width, height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
 
     stopCamera();
     setMode('preview');

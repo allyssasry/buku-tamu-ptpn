@@ -92,7 +92,7 @@ const GuestForm = () => {
     };
 
     try {
-      const res = await api.post('/guests', payload, { timeout: 30000 });
+      const res = await api.post('/guests', payload, { timeout: 45000 });
       navigate('/guest-success', {
         state: {
           guest: res.data.guest,
@@ -104,8 +104,8 @@ const GuestForm = () => {
       if (!err.response) {
         setError(
           err.code === 'ECONNABORTED'
-            ? 'Koneksi ke server melebihi batas waktu (timeout). Silakan coba kirim kembali.'
-            : 'Tidak dapat terhubung ke server backend. Pastikan koneksi internet aktif atau server backend lokal sudah berjalan.'
+            ? 'Koneksi ke server melebihi batas waktu (timeout). Server mungkin sedang memulai (cold start), silakan coba kirim kembali dalam beberapa detik.'
+            : 'Tidak dapat terhubung ke server backend atau ukuran foto melebihi batas. Pastikan koneksi internet aktif dan silakan coba ambil ulang foto atau kirim kembali.'
         );
       } else {
         const valErrors = err.response.data?.errors;
@@ -113,6 +113,8 @@ const GuestForm = () => {
           const firstField = Object.keys(valErrors)[0];
           const errorMsg = valErrors[firstField]?.[0] || err.response.data?.message;
           setError(errorMsg);
+        } else if (err.response.status === 413) {
+          setError('Ukuran data / foto terlalu besar. Silakan ambil ulang foto dengan ukuran lebih kecil.');
         } else if (err.response.status >= 500) {
           setError('Terjadi gangguan pada server saat menyimpan data kunjungan. Silakan coba kembali beberapa saat lagi.');
         } else {
