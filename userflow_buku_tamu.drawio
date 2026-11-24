@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-11-23T09:30:00.000Z" agent="Antigravity" version="24.0.0" type="device">
+  <diagram id="buku-tamu-userflow" name="Userflow Sistem Buku Tamu Gedung Holding">
+    <mxGraphModel dx="1600" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+<mxCell id="lane_tamu" value="1. TAMU &amp; PESERTA MAGANG (Kiosk Lobby)" style="swimlane;startSize=36;rounded=1;arcSize=4;fontStyle=1;fontSize=14;fontFamily=Helvetica;align=center;fillColor=#f0fdf4;strokeColor=#16a34a;fontColor=#0f172a;" vertex="1" parent="1">
+    <mxGeometry x="40" y="40" width="340" height="1080" as="geometry" />
+  </mxCell>
+<mxCell id="lane_security" value="2. PETUGAS SECURITY (Pos Lt. 11)" style="swimlane;startSize=36;rounded=1;arcSize=4;fontStyle=1;fontSize=14;fontFamily=Helvetica;align=center;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#0f172a;" vertex="1" parent="1">
+    <mxGeometry x="410" y="40" width="370" height="1080" as="geometry" />
+  </mxCell>
+<mxCell id="lane_backend" value="3. SISTEM &amp; DATABASE (Laravel &amp; TiDB)" style="swimlane;startSize=36;rounded=1;arcSize=4;fontStyle=1;fontSize=14;fontFamily=Helvetica;align=center;fillColor=#f8fafc;strokeColor=#64748b;fontColor=#0f172a;" vertex="1" parent="1">
+    <mxGeometry x="810" y="40" width="340" height="1080" as="geometry" />
+  </mxCell>
+<mxCell id="lane_admin" value="4. ADMIN &amp; PIMPINAN (Executive Dashboard)" style="swimlane;startSize=36;rounded=1;arcSize=4;fontStyle=1;fontSize=14;fontFamily=Helvetica;align=center;fillColor=#faf5ff;strokeColor=#9333ea;fontColor=#0f172a;" vertex="1" parent="1">
+    <mxGeometry x="1180" y="40" width="370" height="1080" as="geometry" />
+  </mxCell>
+<mxCell id="t1" value="Mulai Kunjungan
+(Akses Kiosk Lobby)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#10b981;strokeColor=#059669;fontColor=#ffffff;fontStyle=1;fontSize=12;" vertex="1" parent="lane_tamu">
+    <mxGeometry x="100" y="60" width="140" height="50" as="geometry" />
+  </mxCell>
+<mxCell id="t2" value="Pilih Kategori:
+1. Tamu Umum / Dinas
+2. Anak Magang / PKL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=11;fontStyle=0;" vertex="1" parent="lane_tamu">
+    <mxGeometry x="70" y="140" width="200" height="55" as="geometry" />
+  </mxCell>
+<mxCell id="t3" value="Isi Form Registrasi:
+- Identitas &amp; Kontak (HP/WA)
+- Bertemu &amp; 19 Pilihan Divisi
+- Ambil Foto Diri / Wajah (Auto Compress)
+- Persetujuan Kebijakan Data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=11;fontStyle=0;" vertex="1" parent="lane_tamu">
+    <mxGeometry x="60" y="230" width="220" height="90" as="geometry" />
+  </mxCell>
+<mxCell id="t4" value="Klik &quot;Kirim Pendaftaran&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=11;fontStyle=0;" vertex="1" parent="lane_tamu">
+    <mxGeometry x="90" y="355" width="160" height="45" as="geometry" />
+  </mxCell>
+<mxCell id="t5" value="Halaman Sukses Registrasi
+- Tampil Nomor Kartu Looping
+- Instruksi ke Pos Security Lt. 11
+(Menitipkan ID &amp; Ambil Kartu)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=11;fontStyle=0;" vertex="1" parent="lane_tamu">
+    <mxGeometry x="60" y="490" width="220" height="80" as="geometry" />
+  </mxCell>
+<mxCell id="t6" value="Tamu Menuju Pos Security Lt. 11
+Serahkan ID Asli (KTP/SIM/Kartu Pelajar)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=11;fontStyle=0;" vertex="1" parent="lane_tamu">
+    <mxGeometry x="60" y="610" width="220" height="60" as="geometry" />
+  </mxCell>
+<mxCell id="t7" value="Terima Kartu Akses Fisik
+&amp; Melakukan Kunjungan di Gedung" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=11;fontStyle=0;" vertex="1" parent="lane_tamu">
+    <mxGeometry x="60" y="755" width="220" height="55" as="geometry" />
+  </mxCell>
+<mxCell id="t8" value="Kunjungan Selesai:
+Kembali ke Pos Security Lt. 11
+Kembalikan Kartu &amp; Ambil KTP/ID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=11;fontStyle=0;" vertex="1" parent="lane_tamu">
+    <mxGeometry x="60" y="880" width="220" height="65" as="geometry" />
+  </mxCell>
+<mxCell id="t9" value="Selesai Berkunjung
+(Meninggalkan Gedung)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ef4444;strokeColor=#dc2626;fontColor=#ffffff;fontStyle=1;fontSize=12;" vertex="1" parent="lane_tamu">
+    <mxGeometry x="100" y="985" width="140" height="50" as="geometry" />
+  </mxCell>
+<mxCell id="s1" value="Login Petugas Security
+(/login)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#10b981;strokeColor=#059669;fontColor=#ffffff;fontStyle=1;fontSize=12;" vertex="1" parent="lane_security">
+    <mxGeometry x="115" y="60" width="140" height="50" as="geometry" />
+  </mxCell>
+<mxCell id="s2" value="Buka Security Book / Daftar Tamu
+Lihat Antrean &quot;Menunggu Verifikasi&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_security">
+    <mxGeometry x="75" y="225" width="220" height="55" as="geometry" />
+  </mxCell>
+<mxCell id="s3" value="Klik Tombol &quot;Verifikasi Tamu&quot;
+(Membuka Modal Validasi Kedatangan)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_security">
+    <mxGeometry x="75" y="490" width="220" height="50" as="geometry" />
+  </mxCell>
+<mxCell id="s4" value="Proses Verifikasi di Modal:
+1. Cek Foto Wajah Tamu &amp; Divisi
+2. PILIH LANTAI TUJUAN (Lt 11 / 15 / 16)
+3. Tampil No. Kartu Looping (001-050)
+4. Centang Titip KTP &amp; No. Loker
+5. Input Catatan Tambahan (Opsional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_security">
+    <mxGeometry x="55" y="575" width="260" height="110" as="geometry" />
+  </mxCell>
+<mxCell id="s5" value="Klik &quot;Konfirmasi &amp; Izinkan Masuk&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_security">
+    <mxGeometry x="75" y="715" width="220" height="45" as="geometry" />
+  </mxCell>
+<mxCell id="s6" value="Serahkan Kartu Akses Fisik ke Tamu
+&amp; Simpan KTP di Loker Security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_security">
+    <mxGeometry x="75" y="785" width="220" height="55" as="geometry" />
+  </mxCell>
+<mxCell id="s7" value="Saat Tamu Hendak Pulang:
+Klik Tombol &quot;Check-Out Keluar&quot;
+Kembalikan KTP &amp; Simpan Kartu Akses" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_security">
+    <mxGeometry x="75" y="880" width="220" height="65" as="geometry" />
+  </mxCell>
+<mxCell id="s8" value="Patroli Keamanan Area:
+Input Pengecekan Area Gedung
+(Pilih Gedung &amp; 8 Master Area,
+Status Aman/Insiden, Upload Foto)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_security">
+    <mxGeometry x="65" y="980" width="240" height="75" as="geometry" />
+  </mxCell>
+<mxCell id="b1" value="POST /api/guests
+- Validasi Input Tamu
+- Auto-Assign Next Card (001-050)
+- Set Status: &quot;Menunggu Verifikasi&quot;
+- Simpan Foto Wajah (Base64)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_backend">
+    <mxGeometry x="60" y="360" width="220" height="85" as="geometry" />
+  </mxCell>
+<mxCell id="b2" value="Database TiDB Cloud
+Simpan Record Tamu Baru
+(submitted_at: now())" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_backend">
+    <mxGeometry x="70" y="475" width="200" height="55" as="geometry" />
+  </mxCell>
+<mxCell id="b3" value="POST /api/guests/{id}/verify
+- Update destination_floor (11/15/16)
+- Auto Check-In: &quot;Sedang Berkunjung&quot;
+- Timestamp: verified_at &amp; check_in_at
+- Simpan IdentityDeposit (Loker KTP)
+- Simpan Catatan Tambahan Security
+- Catat ke Audit Log Security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_backend">
+    <mxGeometry x="50" y="670" width="240" height="115" as="geometry" />
+  </mxCell>
+<mxCell id="b4" value="POST /api/guests/{id}/checkout
+- Status: &quot;Sudah Keluar&quot;
+- Timestamp: check_out_at = now()
+- Kembalikan Status KTP ke &quot;Dikembalikan&quot;
+- Bebaskan No. Kartu untuk Siklus Looping" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_backend">
+    <mxGeometry x="50" y="880" width="240" height="85" as="geometry" />
+  </mxCell>
+<mxCell id="b5" value="POST /api/security-logs
+Simpan Catatan Patroli Area Gedung
+(Status, Foto Patroli, Timestamp)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=11;fontStyle=0;" vertex="1" parent="lane_backend">
+    <mxGeometry x="60" y="995" width="220" height="60" as="geometry" />
+  </mxCell>
+<mxCell id="a1" value="Login Admin / Pimpinan
+(/login)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#10b981;strokeColor=#059669;fontColor=#ffffff;fontStyle=1;fontSize=12;" vertex="1" parent="lane_admin">
+    <mxGeometry x="115" y="60" width="140" height="50" as="geometry" />
+  </mxCell>
+<mxCell id="a2" value="Executive Monitoring Dashboard
+(/dashboard):
+- Kartu Statistik: Tamu Hari Ini, Bulan Ini,
+Sedang di Gedung (Realtime)
+- Rekapitulasi Tamu per Lantai (11, 15, 16)
+- Rekapitulasi per 19 Divisi &amp; Direksi
+- Rekapitulasi Patroli Security Book" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9333ea;fontColor=#581c87;fontSize=11;fontStyle=0;" vertex="1" parent="lane_admin">
+    <mxGeometry x="55" y="160" width="260" height="115" as="geometry" />
+  </mxCell>
+<mxCell id="a3" value="Fitur Drill-Down Interaktif:
+Klik Kotak Metrik Lantai / Divisi
+-&gt; Muncul Modal Daftar Tamu Terkait
+-&gt; Tombol &quot;Buka Halaman Lengkap&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9333ea;fontColor=#581c87;fontSize=11;fontStyle=0;" vertex="1" parent="lane_admin">
+    <mxGeometry x="65" y="305" width="240" height="75" as="geometry" />
+  </mxCell>
+<mxCell id="a4" value="Menu Buku Tamu Gedung (/guests):
+- Filter &amp; Pencarian Lengkap
+- Modal Detail Tamu (Ikon Mata):
+  * Foto Wajah Tamu
+  * Lantai Tujuan &amp; Divisi
+  * Waktu Pengisian, Verifikasi &amp; Keluar
+  * Catatan Tambahan dari Security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9333ea;fontColor=#581c87;fontSize=11;fontStyle=0;" vertex="1" parent="lane_admin">
+    <mxGeometry x="55" y="415" width="260" height="110" as="geometry" />
+  </mxCell>
+<mxCell id="a5" value="Menu Rekap &amp; Laporan (/reports):
+- Filter Berdasarkan Periode &amp; Divisi
+- Export Laporan Rekap ke Excel &amp; PDF" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9333ea;fontColor=#581c87;fontSize=11;fontStyle=0;" vertex="1" parent="lane_admin">
+    <mxGeometry x="65" y="560" width="240" height="65" as="geometry" />
+  </mxCell>
+<mxCell id="a6" value="Master Data &amp; Kontrol:
+- Master Gedung (Graha Nusa Tiga &amp; Agro Plaza)
+- Master Area Gedung (8 Checkpoint Area)
+- Manajemen User (Admin, Security, Pimpinan)
+- Audit Log Aktivitas Sistem" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9333ea;fontColor=#581c87;fontSize=11;fontStyle=0;" vertex="1" parent="lane_admin">
+    <mxGeometry x="55" y="665" width="260" height="95" as="geometry" />
+  </mxCell>
+<mxCell id="a7" value="AI Analysis System (/ai-insights):
+Analisis Tren Kunjungan, Jam Sibuk,
+&amp; Deteksi Anomali Keamanan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9333ea;fontColor=#581c87;fontSize=11;fontStyle=0;" vertex="1" parent="lane_admin">
+    <mxGeometry x="65" y="790" width="240" height="65" as="geometry" />
+  </mxCell>
+<mxCell id="e_t1_t2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="t1" target="t2">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_t2_t3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="t2" target="t3">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_t3_t4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="t3" target="t4">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_t4_b1" value="Submit API" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="t4" target="b1">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_b1_b2" value="Simpan" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="b1" target="b2">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_b1_t5" value="Respon 201 Created" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="b1" target="t5">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_t5_t6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="t5" target="t6">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_s1_s2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="s1" target="s2">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_b2_s2" value="Data Tamu Masuk" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="b2" target="s2">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_s2_s3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="s2" target="s3">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_t6_s4" value="Tamu Tiba di Lt 11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="t6" target="s4">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_s3_s4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="s3" target="s4">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_s4_s5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="s4" target="s5">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_s5_b3" value="Kirim Verifikasi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="s5" target="b3">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_b3_s6" value="Status: Sedang Berkunjung" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="b3" target="s6">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_s6_t7" value="Fisik Kartu Diserahkan" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="s6" target="t7">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_t7_t8" value="Selesai Urusan" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="t7" target="t8">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_t8_s7" value="Pengembalian Kartu" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="t8" target="s7">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_s7_b4" value="Check-Out API" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="s7" target="b4">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_s7_t9" value="KTP Dikembalikan" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="s7" target="t9">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_s8_b5" value="Simpan Patroli" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="s8" target="b5">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_a1_a2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="a1" target="a2">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_b2_a2" value="Agregasi Data Realtime" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="b2" target="a2">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_b3_a2" value="Update Realtime" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="b3" target="a2">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_b4_a2" value="Update Realtime" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="b4" target="a2">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_a2_a3" value="Klik Kotak Metrik" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="a2" target="a3">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_a2_a4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="a2" target="a4">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_a2_a5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="a2" target="a5">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_a2_a6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="a2" target="a6">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+<mxCell id="e_a2_a7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="a2" target="a7">
+    <mxGeometry relative="1" as="geometry" />
+  </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -209,6 +209,7 @@ const AdminDashboard = () => {
         (item.destination_division && item.destination_division.toLowerCase().includes(query)) ||
         (item.destination_floor && item.destination_floor.toLowerCase().includes(query)) ||
         (item.card_number && item.card_number.toLowerCase().includes(query)) ||
+        (item.work_order_number && item.work_order_number.toLowerCase().includes(query)) ||
         (item.status && item.status.toLowerCase().includes(query))
       );
     }
@@ -472,7 +473,7 @@ const AdminDashboard = () => {
                   Lantai 11
                 </span>
                 <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
-                  Security, Resepsionis & Operasional
+                  Area Kantor
                 </h4>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -544,7 +545,7 @@ const AdminDashboard = () => {
                   Lantai 15
                 </span>
                 <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
-                  Executive Boardroom & Direksi
+                  Area Kantor dan Area Direksi
                 </h4>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -613,10 +614,10 @@ const AdminDashboard = () => {
                   padding: '2px 8px',
                   borderRadius: 4
                 }}>
-                  Lantai 16 (Rooftop)
+                  Lantai 16
                 </span>
                 <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
-                  Rooftop, Genset & Helipad
+                  Area Kantor
                 </h4>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -1486,11 +1487,11 @@ const AdminDashboard = () => {
                                         fontWeight: 700,
                                         padding: '1px 6px',
                                         borderRadius: 4,
-                                        background: g.category === 'magang' ? '#faf5ff' : '#f0fdf4',
-                                        color: g.category === 'magang' ? '#7c3aed' : '#059669',
-                                        border: `1px solid ${g.category === 'magang' ? '#ddd6fe' : '#bbf7d0'}`
+                                        background: g.category === 'magang' ? '#faf5ff' : (g.category === 'vendor' ? '#fefce8' : '#f0fdf4'),
+                                        color: g.category === 'magang' ? '#7c3aed' : (g.category === 'vendor' ? '#a16207' : '#059669'),
+                                        border: `1px solid ${g.category === 'magang' ? '#ddd6fe' : (g.category === 'vendor' ? '#fde68a' : '#bbf7d0')}`
                                       }}>
-                                        {g.category === 'magang' ? '🎓 Magang / PKL' : '👤 Tamu Umum'}
+                                        {g.category === 'magang' ? '🎓 Magang / PKL' : (g.category === 'vendor' ? '🔧 Vendor / Kontraktor' : '👤 Tamu Umum')}
                                       </span>
                                       <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{g.identity_type}</span>
                                     </div>

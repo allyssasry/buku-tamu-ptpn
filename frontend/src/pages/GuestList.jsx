@@ -22,7 +22,9 @@ import {
   RotateCcw,
   X,
   Building2,
-  FileText
+  FileText,
+  Wrench,
+  Package
 } from 'lucide-react';
 
 const CARD_OPTIONS = Array.from({ length: 50 }, (_, i) => String(i + 1).padStart(3, '0'));
@@ -59,6 +61,7 @@ const GuestList = () => {
     depositId: true,
     cardNumber: '',
     destinationFloor: 'Lantai 11',
+    itemsBroughtOut: '',
   });
   const [actionLoading, setActionLoading] = useState(false);
   const [activeCardsData, setActiveCardsData] = useState({ occupied: [], details: {} });
@@ -148,11 +151,12 @@ const GuestList = () => {
 
   const handleOpenAction = (type, guest) => {
     const isMagang = guest.category === 'magang';
-    const labelUser = isMagang ? 'Anak Magang' : 'Tamu';
+    const isVendor = guest.category === 'vendor';
+    const labelUser = isMagang ? 'Anak Magang' : (isVendor ? 'Vendor' : 'Tamu');
     const defaultFloor = guest.destination_floor && guest.destination_floor !== '-'
       ? guest.destination_floor
       : (isMagang ? 'Lantai Penempatan' : 'Lantai 11');
-    const autoCard = guest.card_number || (isMagang ? activeCardsData.magang?.next_card : activeCardsData.tamu?.next_card) || '';
+    const autoCard = guest.card_number || (isMagang ? activeCardsData.magang?.next_card : (isVendor ? activeCardsData.vendor?.next_card : activeCardsData.tamu?.next_card)) || '';
 
     if (type === 'verify') {
       setActionConfirm({
@@ -166,6 +170,7 @@ const GuestList = () => {
         depositId: true,
         cardNumber: autoCard,
         destinationFloor: defaultFloor,
+        itemsBroughtOut: guest.items_brought_out || '',
       });
     } else if (type === 'checkin') {
       setActionConfirm({
@@ -179,6 +184,7 @@ const GuestList = () => {
         depositId: true,
         cardNumber: autoCard,
         destinationFloor: defaultFloor,
+        itemsBroughtOut: guest.items_brought_out || '',
       });
     } else if (type === 'checkout') {
       setActionConfirm({
@@ -186,11 +192,13 @@ const GuestList = () => {
         type: 'checkout',
         guest,
         title: `Check-Out ${labelUser}: ${guest.name}`,
-        message: `Konfirmasi bahwa ${labelUser.toLowerCase()} ${guest.name} telah selesai berkunjung dan keluar dari gedung. Kartu akses dikembalikan dan identitas otomatis dicatat kembali.`,
+        message: `Konfirmasi bahwa ${labelUser.toLowerCase()} ${guest.name} (${guest.institution}) telah selesai berkunjung dan keluar dari gedung. Kartu akses dikembalikan dan identitas otomatis dicatat kembali.`,
         notes: '',
+        guestNotes: '',
         depositId: false,
         cardNumber: guest.card_number || '',
         destinationFloor: defaultFloor,
+        itemsBroughtOut: guest.items_brought_out || '',
       });
     } else if (type === 'delete') {
       setActionConfirm({
@@ -200,15 +208,17 @@ const GuestList = () => {
         title: `Hapus Data ${labelUser}: ${guest.name}`,
         message: `Data registrasi ${labelUser.toLowerCase()} ini akan dihapus secara permanen dari sistem database.`,
         notes: '',
+        guestNotes: '',
         depositId: false,
         cardNumber: guest.card_number || '',
         destinationFloor: defaultFloor,
+        itemsBroughtOut: '',
       });
     }
   };
 
   const handleConfirmAction = async () => {
-    const { type, guest, depositId, notes, guestNotes, cardNumber, destinationFloor } = actionConfirm;
+    const { type, guest, depositId, notes, guestNotes, cardNumber, destinationFloor, itemsBroughtOut } = actionConfirm;
     if (!guest) return;
     setActionLoading(true);
 
@@ -231,12 +241,14 @@ const GuestList = () => {
           destination_floor: destinationFloor || undefined,
         });
       } else if (type === 'checkout') {
-        await api.post(`/guests/${guest.id}/checkout`);
+        await api.post(`/guests/${guest.id}/checkout`, {
+          items_brought_out: itemsBroughtOut || undefined,
+        });
       } else if (type === 'delete') {
         await api.delete(`/guests/${guest.id}`);
       }
 
-      setActionConfirm({ isOpen: false, type: '', guest: null, title: '', message: '', cardNumber: '', destinationFloor: 'Lantai 11' });
+      setActionConfirm({ isOpen: false, type: '', guest: null, title: '', message: '', cardNumber: '', destinationFloor: 'Lantai 11', itemsBroughtOut: '' });
       if (selectedGuest && selectedGuest.id === guest.id) {
         handleViewDetail(guest.id);
       }
@@ -309,13 +321,14 @@ const GuestList = () => {
               onChange={(e) => setCategory(e.target.value)}
               style={{
                 fontWeight: 600,
-                color: category === 'magang' ? '#7e22ce' : (category === 'tamu' ? '#047857' : undefined),
-                background: category === 'magang' ? '#faf5ff' : (category === 'tamu' ? '#f0fdf4' : undefined),
+                color: category === 'magang' ? '#7e22ce' : (category === 'vendor' ? '#a16207' : (category === 'tamu' ? '#047857' : undefined)),
+                background: category === 'magang' ? '#faf5ff' : (category === 'vendor' ? '#fefce8' : (category === 'tamu' ? '#f0fdf4' : undefined)),
               }}
             >
               <option value="all">Semua Kategori</option>
               <option value="tamu">👤 Tamu Umum</option>
               <option value="magang">🎓 Anak Magang / PKL</option>
+              <option value="vendor">🔧 Vendor / Kontraktor</option>
             </select>
           </div>
 
@@ -379,14 +392,14 @@ const GuestList = () => {
             <span style={{ fontWeight: 600, color: '#64748b' }}>Filter Aktif:</span>
             {category !== 'all' && (
               <span style={{
-                background: category === 'magang' ? '#faf5ff' : '#f0fdf4',
-                color: category === 'magang' ? '#7e22ce' : '#047857',
-                border: `1px solid ${category === 'magang' ? '#ddd6fe' : '#bbf7d0'}`,
+                background: category === 'magang' ? '#faf5ff' : (category === 'vendor' ? '#fefce8' : '#f0fdf4'),
+                color: category === 'magang' ? '#7e22ce' : (category === 'vendor' ? '#a16207' : '#047857'),
+                border: `1px solid ${category === 'magang' ? '#ddd6fe' : (category === 'vendor' ? '#fde68a' : '#bbf7d0')}`,
                 padding: '2px 8px',
                 borderRadius: 4,
                 fontWeight: 600
               }}>
-                {category === 'magang' ? '🎓 Anak Magang / PKL' : '👤 Tamu Umum'}
+                {category === 'magang' ? '🎓 Anak Magang / PKL' : (category === 'vendor' ? '🔧 Vendor / Kontraktor' : '👤 Tamu Umum')}
               </span>
             )}
             {status !== 'all' && (
@@ -537,6 +550,22 @@ const GuestList = () => {
                         <GraduationCap size={13} />
                         <span>Magang</span>
                       </span>
+                    ) : g.category === 'vendor' ? (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        background: '#fefce8',
+                        color: '#a16207',
+                        border: '1px solid #fef08a'
+                      }}>
+                        <Wrench size={13} />
+                        <span>Vendor</span>
+                      </span>
                     ) : (
                       <span style={{
                         display: 'inline-flex',
@@ -569,16 +598,16 @@ const GuestList = () => {
                         alignItems: 'center',
                         gap: 4,
                         padding: '3px 8px',
-                        background: g.category === 'magang' ? '#faf5ff' : '#eff6ff',
-                        border: g.category === 'magang' ? '1px solid #d8b4fe' : '1px solid #bfdbfe',
+                        background: g.category === 'magang' ? '#faf5ff' : (g.category === 'vendor' ? '#fefce8' : '#eff6ff'),
+                        border: g.category === 'magang' ? '1px solid #d8b4fe' : (g.category === 'vendor' ? '1px solid #fef08a' : '1px solid #bfdbfe'),
                         borderRadius: 6,
-                        color: g.category === 'magang' ? '#7e22ce' : '#1d4ed8',
+                        color: g.category === 'magang' ? '#7e22ce' : (g.category === 'vendor' ? '#a16207' : '#1d4ed8'),
                         fontWeight: 700,
                         fontSize: '0.75rem',
                         fontFamily: 'monospace'
                       }}>
-                        {g.category === 'magang' ? <GraduationCap size={12} /> : <CreditCard size={12} />}
-                        <span>{g.category === 'magang' ? `Magang ${g.card_number}` : `Tamu ${g.card_number}`}</span>
+                        {g.category === 'magang' ? <GraduationCap size={12} /> : (g.category === 'vendor' ? <Wrench size={12} /> : <CreditCard size={12} />)}
+                        <span>{g.category === 'magang' ? `Magang ${g.card_number}` : (g.category === 'vendor' ? `Vendor ${g.card_number}` : `Tamu ${g.card_number}`)}</span>
                       </span>
                     ) : (
                       <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>
@@ -751,7 +780,7 @@ const GuestList = () => {
                   <CreditCard size={20} style={{ color: selectedGuest.card_number ? '#1d4ed8' : '#94a3b8' }} />
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
-                      No. Kartu Akses / Visitor Badge {selectedGuest.category === 'magang' ? '(Kartu Magang)' : '(Kartu Tamu)'}
+                      No. Kartu Akses / Visitor Badge {selectedGuest.category === 'magang' ? '(Kartu Magang)' : (selectedGuest.category === 'vendor' ? '(Kartu Vendor)' : '(Kartu Tamu)')}
                     </div>
                     <div style={{
                       fontFamily: 'monospace',
@@ -816,6 +845,45 @@ const GuestList = () => {
                     {selectedGuest.notes || 'Tidak ada catatan'}
                   </div>
                 </div>
+
+                {selectedGuest.work_order_number && (
+                  <div style={{ gridColumn: '1 / -1', background: '#fffbeb', border: '1px solid #fde68a', padding: 12, borderRadius: 8 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: 2 }}>
+                      📋 No. SPK / Surat Tugas / Surat Dinas:
+                    </div>
+                    <div style={{ fontWeight: 700, color: '#78350f', fontSize: '0.9375rem', fontFamily: 'monospace' }}>
+                      {selectedGuest.work_order_number}
+                    </div>
+                  </div>
+                )}
+
+                {(selectedGuest.items_brought_in || selectedGuest.items_brought_out) && (
+                  <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                    {selectedGuest.items_brought_in && (
+                      <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Package size={14} style={{ color: '#047857' }} />
+                          <span>Barang Bawaan Masuk:</span>
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: '#334155', whiteSpace: 'pre-line' }}>
+                          {selectedGuest.items_brought_in}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedGuest.items_brought_out && (
+                      <div style={{ background: '#fefce8', border: '1px solid #fef08a', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#713f12', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Package size={14} style={{ color: '#a16207' }} />
+                          <span>Barang Bawaan Keluar (Check-Out):</span>
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: '#854d0e', whiteSpace: 'pre-line' }}>
+                          {selectedGuest.items_brought_out}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Photo Row */}
@@ -923,6 +991,24 @@ const GuestList = () => {
             <p style={{ marginBottom: 14 }}>{actionConfirm.message}</p>
             {(actionConfirm.type === 'verify' || actionConfirm.type === 'checkin') && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Info Khusus Vendor: No SPK & Barang Bawaan Masuk */}
+                {actionConfirm.guest?.category === 'vendor' && (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 12 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: 2 }}>
+                      📋 No. SPK / Surat Tugas / Surat Dinas Vendor:
+                    </div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#78350f', fontFamily: 'monospace', marginBottom: 8 }}>
+                      {actionConfirm.guest.work_order_number || '-'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Package size={14} style={{ color: '#b45309' }} />
+                      <span>Daftar Barang Bawaan Masuk (Pemeriksaan Security):</span>
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', color: '#78350f', background: '#ffffff', padding: '8px 10px', borderRadius: 6, border: '1px solid #fef08a', whiteSpace: 'pre-line' }}>
+                      {actionConfirm.guest.items_brought_in || 'Tidak ada catatan barang bawaan'}
+                    </div>
+                  </div>
+                )}
                 {/* 1. Input / Validasi Lantai Tujuan oleh Security Lantai 11 */}
                 <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: 12, borderRadius: 8 }}>
                   <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -976,17 +1062,17 @@ const GuestList = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{
                         padding: '3px 8px',
-                        background: actionConfirm.guest?.category === 'magang' ? '#faf5ff' : '#eff6ff',
-                        color: actionConfirm.guest?.category === 'magang' ? '#7e22ce' : '#1d4ed8',
-                        border: actionConfirm.guest?.category === 'magang' ? '1px solid #d8b4fe' : '1px solid #bfdbfe',
+                        background: actionConfirm.guest?.category === 'magang' ? '#faf5ff' : (actionConfirm.guest?.category === 'vendor' ? '#fefce8' : '#eff6ff'),
+                        color: actionConfirm.guest?.category === 'magang' ? '#7e22ce' : (actionConfirm.guest?.category === 'vendor' ? '#a16207' : '#1d4ed8'),
+                        border: actionConfirm.guest?.category === 'magang' ? '1px solid #d8b4fe' : (actionConfirm.guest?.category === 'vendor' ? '1px solid #fef08a' : '1px solid #bfdbfe'),
                         borderRadius: 6,
                         fontSize: '0.8125rem',
                         fontWeight: 600
                       }}>
-                        {actionConfirm.guest?.category === 'magang' ? '🎓 Kartu Magang' : '👤 Kartu Tamu'}
+                        {actionConfirm.guest?.category === 'magang' ? '🎓 Kartu Magang' : (actionConfirm.guest?.category === 'vendor' ? '🔧 Kartu Vendor' : '👤 Kartu Tamu')}
                       </span>
                       <span style={{ fontFamily: 'monospace', fontSize: '1.125rem', letterSpacing: '0.05em' }}>
-                        {actionConfirm.cardNumber || (actionConfirm.guest?.category === 'magang' ? '001' : '001')}
+                        {actionConfirm.cardNumber || (actionConfirm.guest?.category === 'magang' ? '001' : (actionConfirm.guest?.category === 'vendor' ? '001' : '001'))}
                       </span>
                     </div>
                     <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1040,6 +1126,40 @@ const GuestList = () => {
                   />
                   <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
                     *Petugas security dapat menginput nomor surat tugas atau catatan sebelum konfirmasi verifikasi.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {actionConfirm.type === 'checkout' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                {actionConfirm.guest?.items_brought_in && (
+                  <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: 12, borderRadius: 8 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Package size={14} style={{ color: '#047857' }} />
+                      <span>Catatan Barang Bawaan Masuk Saat Registrasi:</span>
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', color: '#334155', background: '#ffffff', padding: '8px 10px', borderRadius: 6, border: '1px solid #e2e8f0', whiteSpace: 'pre-line' }}>
+                      {actionConfirm.guest.items_brought_in}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ background: '#fefce8', border: '1px solid #fef08a', padding: 14, borderRadius: 8 }}>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#713f12', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <Package size={16} style={{ color: '#a16207' }} />
+                    <span>Pemeriksaan Barang Bawaan Keluar (Security Check-Out):</span>
+                  </label>
+                  <textarea
+                    className="form-textarea"
+                    rows={2}
+                    placeholder="Catat peralatan / material yang dibawa keluar oleh tamu / vendor (misal: Sisa kabel bekas, modul lama, toolset lengkap)..."
+                    value={actionConfirm.itemsBroughtOut || ''}
+                    onChange={(e) => setActionConfirm(p => ({ ...p, itemsBroughtOut: e.target.value }))}
+                    style={{ fontSize: '0.875rem' }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: '#854d0e', marginTop: 4, display: 'block' }}>
+                    *Security wajib memeriksa fisik dan mencatat barang yang dibawa keluar sebelum konfirmasi check-out.
                   </span>
                 </div>
               </div>

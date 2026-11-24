@@ -1,0 +1,81 @@
+flowchart TD
+    %% ================= SWIMLANES =================
+    subgraph LANE_TAMU["1. TAMU & PESERTA MAGANG (Kiosk Lobby)"]
+        T1(["Mulai: Akses Kiosk Form di Lobby"])
+        T2["Pilih Kategori Kunjungan:<br>• Tamu Umum / Dinas<br>• Anak Magang / PKL"]
+        T3["Isi Form Registrasi:<br>• Nama Lengkap & Instansi<br>• No. WhatsApp & Email<br>• Keperluan & Bertemu Dengan<br>• Pilih 1 dari 19 Divisi/Direksi<br>• Foto Wajah (Auto-Resize & Kompresi)<br>• Centang Persetujuan Data"]
+        T4["Klik 'Kirim Pendaftaran'"]
+        T5["Halaman Sukses Registrasi (/guest-success):<br>• Tampil Nomor Kartu Looping Otomatis<br>• Instruksi menuju Pos Security Lt. 11"]
+        T6["Menuju Pos Security Lantai 11:<br>Serahkan Identitas Asli (KTP/SIM/ID)"]
+        T7["Terima Kartu Akses Fisik<br>& Berkunjung di Gedung"]
+        T8["Kunjungan Selesai:<br>Kembali ke Pos Security Lt. 11<br>Kembalikan Kartu & Ambil KTP/ID"]
+        T9(["Selesai Berkunjung & Tinggalkan Gedung"])
+    end
+
+    subgraph LANE_SECURITY["2. PETUGAS SECURITY (Pos Lantai 11)"]
+        S1(["Login Petugas Security"])
+        S2["Buka Buku Tamu / Security Dashboard:<br>Melihat Tamu 'Menunggu Verifikasi'"]
+        S3["Klik Tombol 'Verifikasi Tamu'"]
+        S4["Modal Verifikasi Security:<br>1. Cek Foto Diri Tamu & Divisi Tujuan<br>2. PILIH LANTAI TUJUAN (Lt 11 / 15 / 16)<br>3. Cek No. Kartu Akses Looping (001-050)<br>4. Centang Titip KTP & Isi No. Loker<br>5. Input Catatan Tambahan (Opsional)"]
+        S5["Klik 'Konfirmasi & Izinkan Masuk'"]
+        S6["Serahkan Kartu Akses Fisik ke Tamu<br>& Simpan KTP di Loker Security"]
+        S7["Saat Tamu Hendak Pulang:<br>Klik Tombol 'Check-Out Keluar'<br>Kembalikan KTP & Simpan Kartu Fisik"]
+        S8["Patroli Area Gedung (Security Book):<br>Catat Pengecekan Area Baru<br>(Pilih Gedung & 8 Master Area,<br>Status Aman/Insiden, Upload Foto)"]
+    end
+
+    subgraph LANE_BACKEND["3. SISTEM & BACKEND CLOUD (Laravel & TiDB)"]
+        B1["POST /api/guests<br>• Validasi Input Data Tamu<br>• Auto-Assign No. Kartu Looping (001-050)<br>• Simpan Foto Wajah Ringan (< 120KB)<br>• Set Status: 'Menunggu Verifikasi'"]
+        B2[("Database TiDB Cloud:<br>Simpan Record Tamu Baru")]
+        B3["POST /api/guests/{id}/verify<br>• Simpan Pilihan Lantai Tujuan<br>• Auto Check-In ('Sedang Berkunjung')<br>• Catat Timestamp: verified_at & check_in_at<br>• Simpan Loker KTP & Catatan Security<br>• Catat ke Audit Log Security"]
+        B4["POST /api/guests/{id}/checkout<br>• Update Status: 'Sudah Keluar'<br>• Catat Timestamp check_out_at<br>• Status KTP Jadi 'Dikembalikan'<br>• Bebaskan Kartu untuk Looping Berikutnya"]
+        B5["POST /api/security-logs<br>Simpan Catatan Patroli Area Gedung"]
+    end
+
+    subgraph LANE_ADMIN["4. ADMIN & PIMPINAN (Executive Dashboard)"]
+        A1(["Login Admin / Pimpinan"])
+        A2["Executive Monitoring Dashboard (/dashboard):<br>• Ringkasan Realtime (Hari Ini, Bulan Ini, Aktif)<br>• Monitoring Tamu per Lantai (11, 15, 16)<br>• Monitoring per 19 Divisi & Direksi<br>• Rekapitulasi Patroli Keamanan"]
+        A3["Fitur Interaktif Drill-Down:<br>Klik Kotak Metrik Lantai / Divisi<br>-> Muncul Modal Daftar Tamu Terkait<br>-> Tombol 'Buka Halaman Lengkap'"]
+        A4["Buku Tamu Gedung (/guests):<br>Lihat Detail Tamu (Ikon Mata):<br>• Foto Wajah Tamu<br>• Lantai Tujuan & Divisi<br>• Timestamp Lengkap (Isi, Verif, Keluar)<br>• Catatan Tambahan dari Security"]
+        A5["Rekap & Laporan (/reports):<br>Export Laporan ke Excel & PDF"]
+        A6["Master Data & Kontrol:<br>• Master Gedung & 8 Area Checkpoint<br>• Manajemen User & Audit Log Aktivitas"]
+    end
+
+    %% ================= FLOW CONNECTORS =================
+    %% Tamu Mendaftar
+    T1 --> T2
+    T2 --> T3
+    T3 --> T4
+    T4 -.->|Kirim Form| B1
+    B1 --> B2
+    B1 -.->|Respon 201 Created| T5
+    T5 --> T6
+
+    %% Security Memverifikasi
+    S1 --> S2
+    B2 -.->|Notifikasi Antrean| S2
+    S2 --> S3
+    T6 -.->|Tamu Tiba di Lt. 11| S4
+    S3 --> S4
+    S4 --> S5
+    S5 -.->|Kirim Validasi| B3
+    B3 -.->|Status: Sedang Berkunjung| S6
+    S6 --> T7
+
+    %% Tamu Check-Out
+    T7 --> T8
+    T8 -.->|Pengembalian Kartu| S7
+    S7 -.->|Proses Check-Out| B4
+    S7 --> T9
+
+    %% Security Patroli
+    S8 -.->|Simpan Patroli| B5
+
+    %% Admin & Dashboard
+    A1 --> A2
+    B2 -.->|Data Agregat Realtime| A2
+    B3 -.->|Update Realtime| A2
+    B4 -.->|Update Realtime| A2
+    A2 --> A3
+    A2 --> A4
+    A2 --> A5
+    A2 --> A6

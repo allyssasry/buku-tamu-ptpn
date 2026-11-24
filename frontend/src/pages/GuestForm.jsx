@@ -2,7 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import CameraCapture from '../components/CameraCapture';
-import { Shield, Building2, User, FileText, Send, AlertCircle, ArrowLeft, GraduationCap, CreditCard, Tag, Camera } from 'lucide-react';
+import {
+  Shield,
+  Building2,
+  User,
+  FileText,
+  Send,
+  AlertCircle,
+  ArrowLeft,
+  GraduationCap,
+  CreditCard,
+  Tag,
+  Camera,
+  Wrench,
+  Package,
+  CheckCircle2,
+  Phone,
+  Briefcase
+} from 'lucide-react';
 
 const GuestForm = () => {
   const navigate = useNavigate();
@@ -16,9 +33,12 @@ const GuestForm = () => {
     email: '',
     address: '',
     notes: '',
-    category: 'tamu', // 'tamu' | 'magang'
+    category: 'tamu', // 'tamu' | 'magang' | 'vendor'
     card_number: '',
     purpose: '',
+    work_order_number: '',
+    items_brought_in: '',
+    items_brought_out: '',
     meeting_with: '',
     destination_division: '',
     destination_floor: '',
@@ -45,11 +65,15 @@ const GuestForm = () => {
     setError('');
 
     const isMagang = formData.category === 'magang';
-    const isIdPegawai = formData.identity_type === 'ID Card' || formData.identity_type === 'ID Pegawai';
+    const isVendor = formData.category === 'vendor';
 
     // Validation
     if (!formData.name.trim()) {
-      return setError(isMagang ? 'Nama lengkap siswa/mahasiswa wajib diisi.' : 'Nama lengkap wajib diisi.');
+      return setError(
+        isMagang
+          ? 'Nama lengkap siswa/mahasiswa wajib diisi.'
+          : (isVendor ? 'Nama lengkap teknisi / petugas vendor wajib diisi.' : 'Nama lengkap wajib diisi.')
+      );
     }
 
     if (isMagang) {
@@ -62,6 +86,17 @@ const GuestForm = () => {
       if (!formData.consent) {
         return setError('Persetujuan penggunaan data wajib dicentang.');
       }
+    } else if (isVendor) {
+      if (!formData.institution.trim()) return setError('Nama perusahaan / instansi vendor wajib diisi.');
+      if (!formData.work_order_number.trim()) return setError('Nomor SPK / Surat Perintah Kerja / Surat Dinas wajib diisi.');
+      if (!formData.phone.trim()) return setError('Nomor HP / WhatsApp teknisi/vendor wajib diisi.');
+      if (!/^\d+$/.test(formData.phone.trim())) return setError('Nomor HP / WhatsApp hanya boleh berisi angka.');
+      if (!formData.purpose.trim()) return setError('Keperluan / uraian pekerjaan teknis wajib diisi.');
+      if (!formData.meeting_with.trim()) return setError('Bertemu dengan (PIC / Pengawas Lapangan) wajib diisi.');
+      if (!formData.destination_division.trim()) return setError('Direksi / Divisi / Unit tujuan wajib dipilih.');
+      if (!formData.items_brought_in.trim()) return setError('Daftar barang bawaan masuk (peralatan / material / tools) wajib diisi.');
+      if (!formData.guest_photo) return setError('Foto diri teknisi/petugas vendor wajib diambil atau diunggah.');
+      if (!formData.consent) return setError('Persetujuan penggunaan data wajib dicentang.');
     } else {
       if (!formData.institution.trim()) return setError('Instansi / Perusahaan wajib diisi.');
       if (!formData.phone.trim()) return setError('Nomor HP / WhatsApp wajib diisi.');
@@ -75,23 +110,36 @@ const GuestForm = () => {
 
     setLoading(true);
 
-    const payload = isMagang ? {
-      ...formData,
-      notes: null,
-      institution: formData.institution.trim() || 'Siswa / Mahasiswa Magang',
-      purpose: formData.purpose.trim() || 'Kegiatan Magang / PKL',
-      meeting_with: formData.meeting_with.trim() || `Pembimbing ${formData.destination_division}`,
-      destination_floor: 'Lantai Penempatan',
-      identity_type: 'ID Card',
-      identity_number: null,
-      card_number: null,
-    } : {
-      ...formData,
-      notes: null,
-      destination_floor: '-',
-      identity_number: null,
-      card_number: null,
-    };
+    let payload;
+    if (isMagang) {
+      payload = {
+        ...formData,
+        notes: null,
+        institution: formData.institution.trim() || 'Siswa / Mahasiswa Magang',
+        purpose: formData.purpose.trim() || 'Kegiatan Magang / PKL',
+        meeting_with: formData.meeting_with.trim() || `Pembimbing ${formData.destination_division}`,
+        destination_floor: 'Lantai Penempatan',
+        identity_type: 'ID Card',
+        identity_number: null,
+        card_number: null,
+      };
+    } else if (isVendor) {
+      payload = {
+        ...formData,
+        notes: null,
+        destination_floor: '-',
+        identity_number: null,
+        card_number: null,
+      };
+    } else {
+      payload = {
+        ...formData,
+        notes: null,
+        destination_floor: '-',
+        identity_number: null,
+        card_number: null,
+      };
+    }
 
     try {
       const res = await api.post('/guests', payload, { timeout: 45000 });
@@ -150,8 +198,8 @@ const GuestForm = () => {
     'Divisi Strategi dan Manajemen Kinerja Korporasi'
   ];
 
-  const isIdPegawai = formData.identity_type === 'ID Card' || formData.identity_type === 'ID Pegawai';
   const isMagang = formData.category === 'magang';
+  const isVendor = formData.category === 'vendor';
 
   return (
     <div style={{
@@ -188,7 +236,7 @@ const GuestForm = () => {
                 Buku Tamu Gedung Holding
               </h1>
               <p style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: 2 }}>
-                Registrasi Kunjungan Tamu Dinas & Peserta Magang
+                Registrasi Tamu Dinas, Peserta Magang & Vendor / Kontraktor
               </p>
             </div>
           </div>
@@ -223,13 +271,14 @@ const GuestForm = () => {
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* PILIH KATEGORI KUNJUNGAN: TAMU UMUM VS ANAK MAGANG */}
+          {/* PILIH KATEGORI KUNJUNGAN: TAMU UMUM VS MAGANG VS VENDOR */}
           <div className="glass-card" style={{ marginBottom: 20, padding: '20px' }}>
             <label className="form-label" style={{ marginBottom: 12, fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, color: '#0f172a' }}>
               <Tag size={16} style={{ color: '#047857' }} />
               <span>Pilih Kategori Kunjungan <span className="required">*</span></span>
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+              {/* 1. Tamu Umum / Dinas */}
               <button
                 type="button"
                 onClick={() => handleChange('category', 'tamu')}
@@ -264,11 +313,12 @@ const GuestForm = () => {
                     Tamu Umum / Dinas
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
-                    Kunjungan dinas, vendor, instansi & mitra kerja
+                    Kunjungan dinas, instansi, audiensi & mitra kerja
                   </div>
                 </div>
               </button>
 
+              {/* 2. Anak Magang / PKL */}
               <button
                 type="button"
                 onClick={() => handleChange('category', 'magang')}
@@ -304,6 +354,46 @@ const GuestForm = () => {
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
                     Mahasiswa magang, siswa SMK PKL & riset
+                  </div>
+                </div>
+              </button>
+
+              {/* 3. Vendor / Kontraktor */}
+              <button
+                type="button"
+                onClick={() => handleChange('category', 'vendor')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '16px',
+                  borderRadius: 10,
+                  border: formData.category === 'vendor' ? '2px solid #047857' : '1px solid #e2e8f0',
+                  background: formData.category === 'vendor' ? '#f0fdf4' : '#ffffff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  background: formData.category === 'vendor' ? '#047857' : '#f1f5f9',
+                  color: formData.category === 'vendor' ? '#ffffff' : '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Wrench size={20} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: formData.category === 'vendor' ? '#065f46' : '#1e293b' }}>
+                    Vendor / Kontraktor
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
+                    Pekerjaan teknis, instalasi, pengadaan & servis
                   </div>
                 </div>
               </button>
@@ -356,7 +446,7 @@ const GuestForm = () => {
 
                 {/* Informasi Kartu Akses Magang Otomatis */}
                 <div style={{
-                  gridColumn: 'span 2',
+                  gridColumn: '1 / -1',
                   background: '#faf5ff',
                   border: '1px solid #d8b4fe',
                   padding: '14px 16px',
@@ -398,7 +488,265 @@ const GuestForm = () => {
                 />
               </div>
             </div>
+          ) : isVendor ? (
+            /* KHUSUS BUKU TAMU VENDOR / KONTRAKTOR */
+            <>
+              {/* SECTION 1: INFORMASI VENDOR & TEKNISI */}
+              <div className="glass-card" style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, borderBottom: '1px solid #f1f5f9', paddingBottom: 12 }}>
+                  <Briefcase size={20} style={{ color: '#047857' }} />
+                  <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#0f172a' }}>
+                    1. Informasi Vendor & Teknisi
+                  </h2>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                  <div className="form-group">
+                    <label className="form-label">
+                      Nama Lengkap Teknisi / Petugas Vendor <span className="required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Contoh: Ahmad Rizki"
+                      value={formData.name}
+                      onChange={(e) => handleChange('name', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      Nama Vendor / Perusahaan <span className="required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Contoh: PT Solusi Teknik Mandiri"
+                      value={formData.institution}
+                      onChange={(e) => handleChange('institution', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      No. SPK / Surat Tugas / Surat Perintah Kerja <span className="required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Contoh: SPK/PTPN/2026/XI/089"
+                      value={formData.work_order_number}
+                      onChange={(e) => handleChange('work_order_number', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      Nomor HP / WhatsApp <span className="required">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      className="form-input"
+                      placeholder="Contoh: 081234567890 (Hanya Angka)"
+                      value={formData.phone}
+                      onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, ''))}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ gridColumn: 'span 1' }}>
+                    <label className="form-label">Email (Opsional)</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      placeholder="teknisi@vendor.com"
+                      value={formData.email}
+                      onChange={(e) => handleChange('email', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ gridColumn: 'span 1' }}>
+                    <label className="form-label">Alamat / Kota Vendor (Opsional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Kota domisili kantor vendor"
+                      value={formData.address}
+                      onChange={(e) => handleChange('address', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: INFORMASI PEKERJAAN & TUJUAN */}
+              <div className="glass-card" style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, borderBottom: '1px solid #f1f5f9', paddingBottom: 12 }}>
+                  <Building2 size={20} style={{ color: '#047857' }} />
+                  <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#0f172a' }}>
+                    2. Informasi Pekerjaan & Tujuan
+                  </h2>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label">
+                      Uraian Pekerjaan / Keperluan Kunjungan <span className="required">*</span>
+                    </label>
+                    <textarea
+                      className="form-textarea"
+                      rows={2}
+                      placeholder="Jelaskan ruang lingkup pekerjaan teknis, instalasi, pengadaan, atau pemeliharaan..."
+                      value={formData.purpose}
+                      onChange={(e) => handleChange('purpose', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      Bertemu Dengan (PIC / Pengawas Lapangan) <span className="required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Nama staff atau penanggung jawab divisi"
+                      value={formData.meeting_with}
+                      onChange={(e) => handleChange('meeting_with', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      Direksi / Divisi / Unit Tujuan <span className="required">*</span>
+                    </label>
+                    <select
+                      className="form-select"
+                      value={formData.destination_division}
+                      onChange={(e) => handleChange('destination_division', e.target.value)}
+                      required
+                    >
+                      <option value="">-- Pilih Direksi / Divisi / Unit --</option>
+                      {divisionOptions.map((div, i) => (
+                        <option key={i} value={div}>{div}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: LOGISTIK BARANG BAWAAN (MASUK & KELUAR) */}
+              <div className="glass-card" style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, borderBottom: '1px solid #f1f5f9', paddingBottom: 12 }}>
+                  <Package size={20} style={{ color: '#047857' }} />
+                  <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#0f172a' }}>
+                    3. Daftar Barang Bawaan & Peralatan (Security Log)
+                  </h2>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                  {/* Barang Bawaan Masuk */}
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label" style={{ fontWeight: 600 }}>
+                      Barang Bawaan Masuk (Peralatan Kerja / Material / Tools) <span className="required">*</span>
+                    </label>
+                    <textarea
+                      className="form-textarea"
+                      rows={3}
+                      placeholder="Contoh: 1 Kotak Toolset, Tangga Lipat 2 Meter, 1 Roll Kabel UTP 50m, Multimeter Digital, 1 Mesin Bor Listrik"
+                      value={formData.items_brought_in}
+                      onChange={(e) => handleChange('items_brought_in', e.target.value)}
+                      required
+                    />
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
+                      *Wajib diisi secara lengkap untuk diverifikasi oleh petugas security saat masuk pos lantai 11.
+                    </span>
+                  </div>
+
+                  {/* Estimasi Barang Bawaan Keluar */}
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label">
+                      Rencana / Estimasi Barang Bawaan Keluar (Opsional saat registrasi awal)
+                    </label>
+                    <textarea
+                      className="form-textarea"
+                      rows={2}
+                      placeholder="Contoh: Sisa material potongan kabel, unit UPS lama yang diganti, atau toolset lengkap (akan diverifikasi ulang oleh security saat check-out)"
+                      value={formData.items_brought_out}
+                      onChange={(e) => handleChange('items_brought_out', e.target.value)}
+                    />
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4, display: 'block' }}>
+                      *Petugas security akan memeriksa dan mencatat ulang barang bawaan keluar saat proses check-out.
+                    </span>
+                  </div>
+
+                  <div className="form-group" style={{ gridColumn: 'span 1' }}>
+                    <label className="form-label">Jenis Identitas yang Dititipkan ke Security <span className="required">*</span></label>
+                    <select
+                      className="form-select"
+                      value={formData.identity_type}
+                      onChange={(e) => handleChange('identity_type', e.target.value)}
+                      required
+                    >
+                      <option value="KTP">KTP (Kartu Tanda Penduduk)</option>
+                      <option value="SIM">SIM (Surat Izin Mengemudi)</option>
+                      <option value="ID Card">ID Card Vendor / Pegawai</option>
+                      <option value="Passport">Passport</option>
+                      <option value="Lainnya">Lainnya</option>
+                    </select>
+                  </div>
+
+                  {/* Informasi Kartu Akses Vendor */}
+                  <div style={{
+                    gridColumn: '1 / -1',
+                    background: '#fefce8',
+                    border: '1px solid #fef08a',
+                    padding: '14px 16px',
+                    borderRadius: 10,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12
+                  }}>
+                    <div style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: '#fef9c3',
+                      color: '#a16207',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <Wrench size={20} />
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', color: '#854d0e', lineHeight: 1.5 }}>
+                      <div style={{ fontWeight: 700, color: '#713f12', marginBottom: 2 }}>
+                        Penyerahan Kartu Akses Vendor & Pemeriksaan Barang (Lantai 11)
+                      </div>
+                      Nomor kartu akses vendor fisik (001 - 050) akan diberikan secara otomatis berurutan. Petugas security di lantai 11 akan memverifikasi surat perintah kerja (SPK), daftar barang bawaan masuk, dan lantai kerja tujuan.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 16 }}>
+                  {/* Photo Diri Petugas Vendor (Wajib) */}
+                  <CameraCapture
+                    label="Foto Diri / Wajah Teknisi / Petugas Vendor"
+                    required={true}
+                    value={formData.guest_photo}
+                    onChange={(photo) => handleChange('guest_photo', photo)}
+                    placeholderText="Ambil foto wajah teknisi/petugas vendor atau upload foto"
+                  />
+                </div>
+              </div>
+            </>
           ) : (
+            /* BUKU TAMU UMUM / DINAS */
             <>
               {/* SECTION 1: INFORMASI TAMU */}
               <div className="glass-card" style={{ marginBottom: 24 }}>

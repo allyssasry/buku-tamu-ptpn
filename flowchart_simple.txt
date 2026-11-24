@@ -1,0 +1,23 @@
+flowchart TD
+    %% Styling
+    classDef startEnd fill:#10b981,stroke:#059669,stroke-width:2px,color:#ffffff,font-weight:bold;
+    classDef step fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#0f172a;
+    classDef secStep fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#0f172a;
+    classDef adminStep fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#0f172a;
+
+    A([1. Tamu Tiba di Lobby Gedung]):::startEnd --> B[Tamu Isi Form Kunjungan & Foto Wajah via Kiosk/HP]:::step
+    B --> C[Sistem Berikan Nomor Kartu Akses Otomatis<br>Status: Menunggu Verifikasi]:::step
+    C --> D[Tamu Menuju Pos Security di Lantai 11]:::step
+
+    D --> E[Security Verifikasi Tamu di Sistem:<br>1. Pilih Lantai Tujuan: Lt 11 / 15 / 16<br>2. Titipkan KTP Asli di Loker<br>3. Serahkan Kartu Akses Fisik]:::secStep
+
+    E --> F[Status Tamu Jadi: Sedang Berkunjung<br>Otomatis Check-In]:::secStep
+
+    F --> G[Tamu Melakukan Kunjungan di Lantai Tujuan]:::step
+    F -.-> M[Dashboard Admin & Pimpinan:<br>Terpantau Realtime per Lantai & Divisi]:::adminStep
+
+    G --> H[Kunjungan Selesai:<br>Tamu Kembali ke Pos Security Lantai 11]:::step
+
+    H --> I[Security Klik Check-Out di Sistem:<br>1. Kembalikan KTP Tamu<br>2. Terima Kembali Kartu Akses Fisik]:::secStep
+
+    I --> J([Tamu Meninggalkan Gedung<br>Status: Sudah Keluar]):::startEnd

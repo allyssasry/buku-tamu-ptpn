@@ -82,10 +82,13 @@ const ReportsPage = () => {
     const excelRows = guestReport.data.map((g) => ({
       'ID Registrasi': g.id,
       'Waktu Pengisian': new Date(g.submitted_at).toLocaleString('id-ID'),
-      'Kategori': g.category === 'magang' ? 'Anak Magang / PKL' : 'Tamu Umum',
+      'Kategori': g.category === 'magang' ? 'Anak Magang / PKL' : (g.category === 'vendor' ? 'Vendor / Kontraktor' : 'Tamu Umum'),
       'Nama Pengunjung': g.name,
       'Instansi / Kampus': g.institution,
       'No. Kartu Akses': g.card_number || '-',
+      'No. SPK / Surat Dinas': g.work_order_number || '-',
+      'Barang Bawaan Masuk': g.items_brought_in || '-',
+      'Barang Bawaan Keluar': g.items_brought_out || '-',
       'Jabatan / Jurusan': g.position || '-',
       'Nomor HP': g.phone || '-',
       'Keperluan': g.purpose,
@@ -102,23 +105,23 @@ const ReportsPage = () => {
 
     const ws = XLSX.utils.json_to_sheet(excelRows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Rekap Tamu & Magang");
-    XLSX.writeFile(wb, `Laporan_Rekap_Tamu_Magang_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Rekap Tamu, Magang & Vendor");
+    XLSX.writeFile(wb, `Laporan_Rekap_Kunjungan_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const exportGuestsPDF = () => {
     if (!guestReport?.data) return;
     const doc = new jsPDF('landscape');
     doc.setFontSize(16);
-    doc.text("HOLDING MONITORING SYSTEM - REKAP LAPORAN BUKU TAMU & MAGANG", 14, 15);
+    doc.text("HOLDING MONITORING SYSTEM - REKAP LAPORAN BUKU TAMU, MAGANG & VENDOR", 14, 15);
     doc.setFontSize(10);
     doc.text(`Periode: ${period} | Kategori: ${categoryFilter} | Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 22);
 
-    const headers = [["No", "Waktu", "Kategori", "Nama Pengunjung", "Instansi / Kampus", "No. Kartu", "Tujuan", "Lantai", "Status"]];
+    const headers = [["No", "Waktu", "Kategori", "Nama Pengunjung", "Instansi / Vendor", "No. Kartu", "Tujuan", "Lantai", "Status"]];
     const data = guestReport.data.map((g, i) => [
       i + 1,
       new Date(g.submitted_at).toLocaleString('id-ID'),
-      g.category === 'magang' ? 'Magang' : 'Tamu',
+      g.category === 'magang' ? 'Magang' : (g.category === 'vendor' ? 'Vendor' : 'Tamu'),
       g.name,
       g.institution,
       g.card_number || '-',
@@ -300,9 +303,10 @@ const ReportsPage = () => {
                   background: categoryFilter === 'magang' ? '#faf5ff' : (categoryFilter === 'tamu' ? '#f0fdf4' : undefined)
                 }}
               >
-                <option value="all">Semua Kategori (Tamu & Magang)</option>
+                <option value="all">Semua Kategori (Tamu, Magang & Vendor)</option>
                 <option value="tamu">👤 Tamu Umum</option>
                 <option value="magang">🎓 Anak Magang / PKL</option>
+                <option value="vendor">🔧 Vendor / Kontraktor</option>
               </select>
             </div>
           )}

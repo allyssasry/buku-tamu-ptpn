@@ -11,10 +11,33 @@ use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class GuestController extends Controller
 {
+    /**
+     * Ensure vendor-specific columns exist on the guests table in production.
+     */
+    public static function ensureVendorColumns(): void
+    {
+        static $checked = false;
+        if ($checked) return;
+        $checked = true;
+
+        try {
+            if (!Schema::hasColumn('guests', 'work_order_number')) {
+                Schema::table('guests', function ($table) {
+                    $table->string('work_order_number')->nullable()->after('purpose');
+                    $table->text('items_brought_in')->nullable()->after('work_order_number');
+                    $table->text('items_brought_out')->nullable()->after('items_brought_in');
+                });
+            }
+        } catch (\Throwable $e) {
+            // Silently skip if table or columns exist
+        }
+    }
+
     /**
      * Get the next sequential looping available card number (001 - 050).
      * Continues forward from the last assigned card number up to 50, then wraps back to 001.
@@ -78,6 +101,8 @@ class GuestController extends Controller
         $tamuDetails = [];
         $magangOccupied = [];
         $magangDetails = [];
+        $vendorOccupied = [];
+        $vendorDetails = [];
 
         foreach ($activeGuests as $g) {
             $card = trim($g->card_number);
@@ -97,6 +122,9 @@ class GuestController extends Controller
             if ($g->category === 'magang') {
                 $magangOccupied[] = $card;
                 $magangDetails[$card] = $item;
+            } elseif ($g->category === 'vendor') {
+                $vendorOccupied[] = $card;
+                $vendorDetails[$card] = $item;
             } else {
                 $tamuOccupied[] = $card;
                 $tamuDetails[$card] = $item;
@@ -105,13 +133,15 @@ class GuestController extends Controller
 
         $nextTamu = self::getNextAvailableCard('tamu');
         $nextMagang = self::getNextAvailableCard('magang');
+        $nextVendor = self::getNextAvailableCard('vendor');
 
         return response()->json([
-            'occupied' => array_values(array_unique(array_merge($tamuOccupied, $magangOccupied))),
-            'details' => array_merge($tamuDetails, $magangDetails),
+            'occupied' => array_values(array_unique(array_merge($tamuOccupied, $magangOccupied, $vendorOccupied))),
+            'details' => array_merge($tamuDetails, $magangDetails, $vendorDetails),
             'next_card' => [
                 'tamu' => $nextTamu,
                 'magang' => $nextMagang,
+                'vendor' => $nextVendor,
             ],
             'tamu' => [
                 'occupied' => array_values(array_unique($tamuOccupied)),
@@ -123,11 +153,18 @@ class GuestController extends Controller
                 'details' => $magangDetails,
                 'next_card' => $nextMagang,
             ],
+            'vendor' => [
+                'occupied' => array_values(array_unique($vendorOccupied)),
+                'details' => $vendorDetails,
+                'next_card' => $nextVendor,
+            ],
         ]);
     }
 
     public function index(Request $request)
     {
+        self::ensureVendorColumns();
+
         // Auto-heal legacy 'Terverifikasi' status to 'Sedang Berkunjung'
         // since verification by security now directly checks the visitor in
         Guest::where('status', 'Terverifikasi')->update([
@@ -167,7 +204,7 @@ class GuestController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter: Category (tamu / magang)
+        // Filter: Category (tamu / magang / vendor)
         if ($request->filled('category') && $request->category !== 'all') {
             $query->where('category', $request->category);
         }
@@ -186,7 +223,7 @@ class GuestController extends Controller
             $query->where('destination_division', $request->division);
         }
 
-        // Filter: Search (Name, Institution, Purpose, Meeting With, Card Number, Identity)
+        // Filter: Search (Name, Institution, Purpose, Meeting With, Card Number, Identity, SPK)
         if ($request->filled('search')) {
             $search = $request->search;
             $like = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
@@ -196,7 +233,8 @@ class GuestController extends Controller
                   ->orWhere('purpose', $like, "%{$search}%")
                   ->orWhere('meeting_with', $like, "%{$search}%")
                   ->orWhere('card_number', $like, "%{$search}%")
-                  ->orWhere('identity_number', $like, "%{$search}%");
+                  ->orWhere('identity_number', $like, "%{$search}%")
+                  ->orWhere('work_order_number', $like, "%{$search}%");
             });
         }
 
@@ -221,7 +259,14 @@ class GuestController extends Controller
 
     public function store(Request $request)
     {
-        $isMagang = $request->input('category') === 'magang';
+        self::ensureVendorColumns();
+
+        $category = $request->input('category', 'tamu');
+        if (!in_array($category, ['tamu', 'magang', 'vendor'], true)) {
+            $category = 'tamu';
+        }
+        $isMagang = $category === 'magang';
+        $isVendor = $category === 'vendor';
         $isIdPegawai = in_array($request->identity_type, ['ID Card', 'ID Pegawai']) || $isMagang;
 
         $request->validate([
@@ -240,17 +285,19 @@ class GuestController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'notes' => 'nullable|string',
-            'category' => 'nullable|string|in:tamu,magang',
+            'category' => 'nullable|string|in:tamu,magang,vendor',
             'card_number' => 'nullable|string|max:100',
             'guest_photo' => 'required', // Foto diri wajib
+            'work_order_number' => $isVendor ? 'required|string|max:255' : 'nullable|string|max:255',
+            'items_brought_in' => $isVendor ? 'required|string' : 'nullable|string',
+            'items_brought_out' => 'nullable|string',
         ], [
             'phone.required' => 'Nomor HP / WhatsApp wajib diisi.',
             'phone.regex' => 'Nomor HP / WhatsApp hanya boleh berisi angka.',
             'identity_number.regex' => 'Nomor identitas hanya boleh berisi angka.',
+            'work_order_number.required' => 'Nomor SPK / Surat Perintah Kerja / Surat Dinas wajib diisi untuk vendor.',
+            'items_brought_in.required' => 'Daftar barang bawaan masuk wajib dicatat untuk vendor.',
         ]);
-
-        $isMagang = $request->input('category') === 'magang';
-        $category = $isMagang ? 'magang' : 'tamu';
 
         $cardNumber = $request->filled('card_number') ? trim($request->card_number) : null;
         if ($cardNumber) {
@@ -263,7 +310,7 @@ class GuestController extends Controller
                 ->first();
 
             if ($inUse) {
-                $cardLabel = $isMagang ? 'Kartu Magang' : 'Kartu Tamu';
+                $cardLabel = $isMagang ? 'Kartu Magang' : ($isVendor ? 'Kartu Vendor' : 'Kartu Tamu');
                 return response()->json([
                     'message' => "Nomor {$cardLabel} {$cardNumber} sedang digunakan oleh {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
                 ], 422);
@@ -296,6 +343,9 @@ class GuestController extends Controller
             'category' => $category,
             'card_number' => $cardNumber,
             'purpose' => $request->filled('purpose') ? $request->purpose : ($isMagang ? 'Kegiatan Magang / PKL' : '-'),
+            'work_order_number' => $request->work_order_number,
+            'items_brought_in' => $request->items_brought_in,
+            'items_brought_out' => $request->items_brought_out,
             'meeting_with' => $request->filled('meeting_with') ? $request->meeting_with : ($isMagang ? 'Pembimbing Divisi' : '-'),
             'destination_division' => $request->destination_division,
             'destination_floor' => $request->filled('destination_floor') ? $request->destination_floor : ($isMagang ? 'Lantai Penempatan' : '-'),
@@ -312,8 +362,8 @@ class GuestController extends Controller
             'verified_by' => null,
         ];
 
-        $labelCategory = $category === 'magang' ? 'Anak Magang / PKL' : 'Tamu';
-        $cardTypeStr = $category === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
+        $labelCategory = $isMagang ? 'Anak Magang / PKL' : ($isVendor ? 'Vendor / Kontraktor' : 'Tamu');
+        $cardTypeStr = $isMagang ? 'Kartu Magang' : ($isVendor ? 'Kartu Vendor' : 'Kartu Tamu');
         $cardLabel = $guestPayload['card_number'] ? " [No. {$cardTypeStr}: {$guestPayload['card_number']}]" : "";
         $idName = $isMagang ? 'KTP / Kartu Identitas Pelajar' : 'KTP';
 
@@ -410,8 +460,11 @@ class GuestController extends Controller
             'destination_floor' => 'sometimes|required|string|max:255',
             'identity_type' => 'sometimes|required|string',
             'identity_number' => 'sometimes|nullable|string|regex:/^[0-9]*$/|max:100',
-            'category' => 'sometimes|nullable|string|in:tamu,magang',
+            'category' => 'sometimes|nullable|string|in:tamu,magang,vendor',
             'card_number' => 'sometimes|nullable|string|max:100',
+            'work_order_number' => 'nullable|string|max:255',
+            'items_brought_in' => 'nullable|string',
+            'items_brought_out' => 'nullable|string',
             'notes' => 'nullable|string',
             'status' => 'sometimes|required|string',
         ], [
@@ -422,7 +475,8 @@ class GuestController extends Controller
 
         $data = $request->only([
             'name', 'institution', 'position', 'phone', 'email', 'address',
-            'notes', 'category', 'card_number', 'purpose', 'meeting_with', 'destination_division',
+            'notes', 'category', 'card_number', 'purpose', 'work_order_number',
+            'items_brought_in', 'items_brought_out', 'meeting_with', 'destination_division',
             'destination_floor', 'identity_type', 'identity_number', 'status'
         ]);
 
@@ -436,7 +490,7 @@ class GuestController extends Controller
                 ->first();
 
             if ($inUse) {
-                $cardLabel = $cat === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
+                $cardLabel = $cat === 'magang' ? 'Kartu Magang' : ($cat === 'vendor' ? 'Kartu Vendor' : 'Kartu Tamu');
                 return response()->json([
                     'message' => "Nomor {$cardLabel} {$cardNumber} sedang digunakan oleh {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
                 ], 422);
@@ -502,6 +556,18 @@ class GuestController extends Controller
             $updateData['notes'] = $request->notes;
         }
 
+        if ($request->has('work_order_number')) {
+            $updateData['work_order_number'] = $request->work_order_number;
+        }
+
+        if ($request->has('items_brought_in')) {
+            $updateData['items_brought_in'] = $request->items_brought_in;
+        }
+
+        if ($request->has('items_brought_out')) {
+            $updateData['items_brought_out'] = $request->items_brought_out;
+        }
+
         if ($request->filled('destination_floor')) {
             $updateData['destination_floor'] = $request->destination_floor;
         }
@@ -519,7 +585,7 @@ class GuestController extends Controller
                 ->first();
 
             if ($inUse) {
-                $cardLabel = $cat === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
+                $cardLabel = $cat === 'magang' ? 'Kartu Magang' : ($cat === 'vendor' ? 'Kartu Vendor' : 'Kartu Tamu');
                 return response()->json([
                     'message' => "Nomor {$cardLabel} {$cardNumber} sedang digunakan oleh {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
                 ], 422);
@@ -603,7 +669,7 @@ class GuestController extends Controller
                 ->first();
 
             if ($inUse) {
-                $cardLabel = $cat === 'magang' ? 'Kartu Magang' : 'Kartu Tamu';
+                $cardLabel = $cat === 'magang' ? 'Kartu Magang' : ($cat === 'vendor' ? 'Kartu Vendor' : 'Kartu Tamu');
                 return response()->json([
                     'message' => "Nomor {$cardLabel} {$cardNumber} sedang digunakan oleh {$inUse->name} ({$inUse->institution}) dan belum dikembalikan."
                 ], 422);
@@ -648,11 +714,17 @@ class GuestController extends Controller
         $guest = Guest::findOrFail($id);
         $user = $request->user();
 
-        $guest->update([
+        $checkoutData = [
             'status' => 'Sudah Keluar',
             'check_out_at' => Carbon::now(),
             'checked_out_by' => $user->id,
-        ]);
+        ];
+
+        if ($request->filled('items_brought_out')) {
+            $checkoutData['items_brought_out'] = $request->items_brought_out;
+        }
+
+        $guest->update($checkoutData);
 
         // Auto return any active identity deposit
         $activeDeposit = IdentityDeposit::where('guest_id', $guest->id)
@@ -668,11 +740,19 @@ class GuestController extends Controller
             ]);
         }
 
+        $logNotes = "Tamu {$guest->name} telah checkout keluar gedung.";
+        if ($guest->category === 'vendor') {
+            $logNotes = "Vendor {$guest->name} ({$guest->institution}) telah checkout keluar gedung.";
+            if ($guest->items_brought_out) {
+                $logNotes .= " [Barang Keluar: {$guest->items_brought_out}]";
+            }
+        }
+
         AuditLog::log(
             $user->id,
             'CHECKOUT_GUEST',
             'GUEST',
-            "Tamu {$guest->name} telah checkout keluar gedung."
+            $logNotes
         );
 
         return response()->json([

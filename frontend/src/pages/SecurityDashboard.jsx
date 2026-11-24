@@ -17,7 +17,9 @@ import {
   CreditCard,
   GraduationCap,
   FileText,
-  Building2
+  Building2,
+  Wrench,
+  Package
 } from 'lucide-react';
 
 const SecurityDashboard = () => {
@@ -35,6 +37,10 @@ const SecurityDashboard = () => {
   const [verifyGuestNotes, setVerifyGuestNotes] = useState('');
   const [destinationFloor, setDestinationFloor] = useState('Lantai 11');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Quick checkout modal state
+  const [checkingOutGuest, setCheckingOutGuest] = useState(null);
+  const [checkoutItemsBroughtOut, setCheckoutItemsBroughtOut] = useState('');
 
   const fetchDashboard = async () => {
     try {
@@ -91,16 +97,19 @@ const SecurityDashboard = () => {
     }
   };
 
-  const handleCheckout = async (guest) => {
-    const isMagang = guest.category === 'magang';
-    const label = isMagang ? 'anak magang' : 'tamu';
-    const cardStr = guest.card_number ? ` (Kartu: ${guest.card_number})` : '';
-    if (!window.confirm(`Konfirmasi check-out untuk ${label} ${guest.name}${cardStr}?\n\nKartu akses akan dikembalikan dan KTP/identitas otomatis dicatat kembali.`)) {
-      return;
-    }
+  const handleOpenCheckoutModal = (guest) => {
+    setCheckingOutGuest(guest);
+    setCheckoutItemsBroughtOut(guest.items_brought_out || '');
+  };
+
+  const submitCheckout = async () => {
+    if (!checkingOutGuest) return;
     setActionLoading(true);
     try {
-      await api.post(`/guests/${guest.id}/checkout`);
+      await api.post(`/guests/${checkingOutGuest.id}/checkout`, {
+        items_brought_out: checkoutItemsBroughtOut || undefined,
+      });
+      setCheckingOutGuest(null);
       fetchDashboard();
     } catch (err) {
       alert(err.response?.data?.message || 'Gagal memproses check-out tamu.');
@@ -265,10 +274,10 @@ const SecurityDashboard = () => {
                             alignItems: 'center',
                             gap: 3,
                             padding: '2px 6px',
-                            background: g.category === 'magang' ? '#faf5ff' : '#eff6ff',
-                            border: g.category === 'magang' ? '1px solid #d8b4fe' : '1px solid #bfdbfe',
+                            background: g.category === 'magang' ? '#faf5ff' : (g.category === 'vendor' ? '#fefce8' : '#eff6ff'),
+                            border: g.category === 'magang' ? '1px solid #d8b4fe' : (g.category === 'vendor' ? '1px solid #fef08a' : '1px solid #bfdbfe'),
                             borderRadius: 4,
-                            color: g.category === 'magang' ? '#7e22ce' : '#1d4ed8',
+                            color: g.category === 'magang' ? '#7e22ce' : (g.category === 'vendor' ? '#a16207' : '#1d4ed8'),
                             fontWeight: 700,
                             fontSize: '0.75rem',
                             fontFamily: 'monospace'
@@ -291,7 +300,7 @@ const SecurityDashboard = () => {
                       <td style={{ textAlign: 'right' }}>
                         {g.status === 'Sedang Berkunjung' && (
                           <button
-                            onClick={() => handleCheckout(g)}
+                            onClick={() => handleOpenCheckoutModal(g)}
                             disabled={actionLoading}
                             className="btn btn-secondary btn-sm"
                             style={{ padding: '4px 8px', fontSize: '0.75rem', color: '#b45309' }}
@@ -441,6 +450,25 @@ const SecurityDashboard = () => {
                 </div>
               )}
 
+              {/* Info Khusus Vendor: No SPK & Barang Bawaan Masuk */}
+              {verifyingGuest.category === 'vendor' && (
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: 2 }}>
+                    📋 No. SPK / Surat Tugas / Surat Dinas:
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#78350f', fontFamily: 'monospace', marginBottom: 8 }}>
+                    {verifyingGuest.work_order_number || '-'}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Package size={14} style={{ color: '#b45309' }} />
+                    <span>Daftar Barang Bawaan Masuk (Pemeriksaan Security):</span>
+                  </div>
+                  <div style={{ fontSize: '0.8125rem', color: '#78350f', background: '#ffffff', padding: '8px 10px', borderRadius: 6, border: '1px solid #fef08a', whiteSpace: 'pre-line' }}>
+                    {verifyingGuest.items_brought_in || 'Tidak ada catatan barang bawaan masuk'}
+                  </div>
+                </div>
+              )}
+
               {/* 1. Pilihan Lantai Tujuan oleh Petugas Security */}
               <div style={{
                 background: '#f0f9ff',
@@ -506,14 +534,14 @@ const SecurityDashboard = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{
                       padding: '2px 8px',
-                      background: verifyingGuest.category === 'magang' ? '#faf5ff' : '#eff6ff',
-                      color: verifyingGuest.category === 'magang' ? '#7e22ce' : '#1d4ed8',
-                      border: verifyingGuest.category === 'magang' ? '1px solid #d8b4fe' : '1px solid #bfdbfe',
+                      background: verifyingGuest.category === 'magang' ? '#faf5ff' : (verifyingGuest.category === 'vendor' ? '#fefce8' : '#eff6ff'),
+                      color: verifyingGuest.category === 'magang' ? '#7e22ce' : (verifyingGuest.category === 'vendor' ? '#a16207' : '#1d4ed8'),
+                      border: verifyingGuest.category === 'magang' ? '1px solid #d8b4fe' : (verifyingGuest.category === 'vendor' ? '1px solid #fef08a' : '1px solid #bfdbfe'),
                       borderRadius: 4,
                       fontSize: '0.75rem',
                       fontWeight: 600
                     }}>
-                      {verifyingGuest.category === 'magang' ? '🎓 Kartu Magang' : '👤 Kartu Tamu'}
+                      {verifyingGuest.category === 'magang' ? '🎓 Kartu Magang' : (verifyingGuest.category === 'vendor' ? '🔧 Kartu Vendor' : '👤 Kartu Tamu')}
                     </span>
                     <span style={{ fontFamily: 'monospace', fontSize: '1.125rem', letterSpacing: '0.05em' }}>
                       {verifyingGuest.card_number || '001'}
@@ -591,6 +619,83 @@ const SecurityDashboard = () => {
               <button onClick={submitVerify} className="btn btn-success" disabled={actionLoading}>
                 <CheckCircle size={16} />
                 <span>{actionLoading ? 'Memproses...' : 'Konfirmasi & Izinkan Masuk'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QUICK CHECK-OUT MODAL */}
+      {checkingOutGuest && (
+        <div className="modal-overlay" onClick={() => setCheckingOutGuest(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 600 }}>
+                Check-Out Pengunjung: {checkingOutGuest.name}
+              </h3>
+              <button onClick={() => setCheckingOutGuest(null)} className="btn btn-secondary btn-sm">
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: 16 }}>
+                Konfirmasi bahwa {checkingOutGuest.category === 'magang' ? 'anak magang' : (checkingOutGuest.category === 'vendor' ? 'vendor' : 'tamu')} <strong>{checkingOutGuest.name}</strong> ({checkingOutGuest.institution}) telah selesai berkunjung dan keluar dari gedung. Kartu akses fisik dikembalikan dan identitas otomatis dicatat kembali.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: 10, borderRadius: 8 }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Nomor Kartu Akses:</div>
+                  <div style={{ fontWeight: 700, color: '#1e40af', fontFamily: 'monospace' }}>
+                    {checkingOutGuest.card_number ? `No. ${checkingOutGuest.card_number}` : '-'}
+                  </div>
+                </div>
+                <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: 10, borderRadius: 8 }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Kategori Kunjungan:</div>
+                  <div style={{ fontWeight: 700, color: checkingOutGuest.category === 'magang' ? '#7e22ce' : (checkingOutGuest.category === 'vendor' ? '#a16207' : '#047857') }}>
+                    {checkingOutGuest.category === 'magang' ? '🎓 Anak Magang' : (checkingOutGuest.category === 'vendor' ? '🔧 Vendor / Kontraktor' : '👤 Tamu Umum')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tampilkan barang bawaan masuk jika ada */}
+              {checkingOutGuest.items_brought_in && (
+                <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: 12, borderRadius: 8, marginBottom: 14 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Package size={14} style={{ color: '#047857' }} />
+                    <span>Catatan Barang Bawaan Masuk Saat Registrasi:</span>
+                  </div>
+                  <div style={{ fontSize: '0.8125rem', color: '#334155', background: '#ffffff', padding: '8px 10px', borderRadius: 6, border: '1px solid #e2e8f0', whiteSpace: 'pre-line' }}>
+                    {checkingOutGuest.items_brought_in}
+                  </div>
+                </div>
+              )}
+
+              {/* Pemeriksaan Barang Bawaan Keluar */}
+              <div style={{ background: '#fefce8', border: '1px solid #fef08a', padding: 14, borderRadius: 8 }}>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#713f12', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <Package size={16} style={{ color: '#a16207' }} />
+                  <span>Pemeriksaan Barang Bawaan Keluar (Security Check-Out):</span>
+                </label>
+                <textarea
+                  className="form-textarea"
+                  rows={2}
+                  placeholder="Catat peralatan / material yang dibawa keluar oleh tamu / vendor (misal: Sisa kabel bekas, modul lama, toolset lengkap)..."
+                  value={checkoutItemsBroughtOut}
+                  onChange={(e) => setCheckoutItemsBroughtOut(e.target.value)}
+                  style={{ fontSize: '0.875rem' }}
+                />
+                <span style={{ fontSize: '0.75rem', color: '#854d0e', marginTop: 4, display: 'block' }}>
+                  *Security wajib memeriksa dan mencatat barang yang dibawa keluar sebelum konfirmasi check-out.
+                </span>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setCheckingOutGuest(null)} className="btn btn-secondary">
+                Batal
+              </button>
+              <button onClick={submitCheckout} className="btn btn-warning" disabled={actionLoading} style={{ background: '#d97706', color: '#ffffff' }}>
+                <LogOut size={16} />
+                <span>{actionLoading ? 'Memproses...' : 'Konfirmasi Check-Out & Kembalikan ID'}</span>
               </button>
             </div>
           </div>
