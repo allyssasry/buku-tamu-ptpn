@@ -22,6 +22,7 @@ Route::get('/buildings', [BuildingController::class, 'index']); // Public list o
 Route::get('/active-cards', [GuestController::class, 'activeCards']); // Public list of currently occupied access cards
 Route::get('/guests/{id}/photo', [GuestController::class, 'photo']);
 Route::get('/guests/{id}/identity-photo', [GuestController::class, 'identityPhoto']);
+Route::get('/guests/{id}/work-order-document', [GuestController::class, 'workOrderDocument']);
 Route::get('/security-logs/{id}/photo', [SecurityLogController::class, 'photo']);
 
 // Protected Endpoints via Sanctum

@@ -847,13 +847,62 @@ const GuestList = () => {
                 </div>
 
                 {selectedGuest.work_order_number && (
-                  <div style={{ gridColumn: '1 / -1', background: '#fffbeb', border: '1px solid #fde68a', padding: 12, borderRadius: 8 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: 2 }}>
-                      📋 No. SPK / Surat Tugas / Surat Dinas:
+                  <div style={{ gridColumn: '1 / -1', background: '#fffbeb', border: '1px solid #fde68a', padding: 14, borderRadius: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e' }}>
+                        📋 No. SPK / Surat Tugas / Surat Dinas:
+                      </div>
+                      {(selectedGuest.work_order_document_url || selectedGuest.has_work_order_document) && (
+                        <span style={{ fontSize: '0.6875rem', background: '#dcfce7', color: '#15803d', fontWeight: 700, padding: '2px 8px', borderRadius: 4, border: '1px solid #bbf7d0' }}>
+                          ✓ Dokumen Bukti Terlampir
+                        </span>
+                      )}
                     </div>
-                    <div style={{ fontWeight: 700, color: '#78350f', fontSize: '0.9375rem', fontFamily: 'monospace' }}>
+                    <div style={{ fontWeight: 700, color: '#78350f', fontSize: '0.9375rem', fontFamily: 'monospace', marginBottom: (selectedGuest.work_order_document_url || selectedGuest.has_work_order_document) ? 10 : 0 }}>
                       {selectedGuest.work_order_number}
                     </div>
+
+                    {(selectedGuest.work_order_document_url || selectedGuest.has_work_order_document) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#ffffff', padding: '10px 12px', borderRadius: 8, border: '1px solid #fef08a' }}>
+                        <div style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 6,
+                          background: (selectedGuest.work_order_document_url?.includes('application/pdf') || selectedGuest.work_order_document_url?.endsWith('.pdf')) ? '#fee2e2' : '#dbeafe',
+                          color: (selectedGuest.work_order_document_url?.includes('application/pdf') || selectedGuest.work_order_document_url?.endsWith('.pdf')) ? '#dc2626' : '#2563eb',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: '0.75rem'
+                        }}>
+                          {(selectedGuest.work_order_document_url?.includes('application/pdf') || selectedGuest.work_order_document_url?.endsWith('.pdf')) ? 'PDF' : 'FOTO'}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
+                            Bukti Surat Perintah Kerja (SPK) / Surat Dinas
+                          </div>
+                          <div style={{ fontSize: '0.6875rem', color: '#64748b' }}>
+                            File resmi penugasan vendor di lingkungan holding
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (selectedGuest.work_order_document_url?.startsWith('data:image')) {
+                              setPhotoModal({ isOpen: true, src: selectedGuest.work_order_document_url, title: `Surat Tugas SPK - ${selectedGuest.name}` });
+                            } else {
+                              window.open(selectedGuest.work_order_document_url || `/api/guests/${selectedGuest.id}/work-order-document`, '_blank');
+                            }
+                          }}
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 4, background: '#f8fafc' }}
+                        >
+                          <Eye size={14} />
+                          <span>Buka Dokumen</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1000,6 +1049,21 @@ const GuestList = () => {
                     <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#78350f', fontFamily: 'monospace', marginBottom: 8 }}>
                       {actionConfirm.guest.work_order_number || '-'}
                     </div>
+
+                    {(actionConfirm.guest.has_work_order_document || actionConfirm.guest.work_order_document_url) && (
+                      <div style={{ marginBottom: 10 }}>
+                        <button
+                          type="button"
+                          onClick={() => window.open(actionConfirm.guest.work_order_document_url || `/api/guests/${actionConfirm.guest.id}/work-order-document`, '_blank')}
+                          className="btn btn-secondary btn-sm"
+                          style={{ width: '100%', justifyContent: 'center', fontSize: '0.75rem', background: '#ffffff', borderColor: '#fcd34d', color: '#92400e', gap: 6, padding: '6px 12px' }}
+                        >
+                          <FileText size={14} />
+                          <span>Buka & Periksa Lampiran SPK (PDF / Foto)</span>
+                        </button>
+                      </div>
+                    )}
+
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Package size={14} style={{ color: '#b45309' }} />
                       <span>Daftar Barang Bawaan Masuk (Pemeriksaan Security):</span>

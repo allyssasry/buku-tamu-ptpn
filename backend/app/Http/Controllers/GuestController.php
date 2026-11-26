@@ -33,6 +33,11 @@ class GuestController extends Controller
                     $table->text('items_brought_out')->nullable()->after('items_brought_in');
                 });
             }
+            if (!Schema::hasColumn('guests', 'work_order_document')) {
+                Schema::table('guests', function ($table) {
+                    $table->longText('work_order_document')->nullable()->after('work_order_number');
+                });
+            }
         } catch (\Throwable $e) {
             // Silently skip if table or columns exist
         }
@@ -249,8 +254,10 @@ class GuestController extends Controller
         $guests->getCollection()->transform(function ($guest) {
             $guest->has_identity_photo = !empty($guest->identity_photo);
             $guest->has_guest_photo = !empty($guest->guest_photo);
+            $guest->has_work_order_document = !empty($guest->work_order_document);
             unset($guest->identity_photo);
             unset($guest->guest_photo);
+            unset($guest->work_order_document);
             return $guest;
         });
 
@@ -289,6 +296,7 @@ class GuestController extends Controller
             'card_number' => 'nullable|string|max:100',
             'guest_photo' => 'required', // Foto diri wajib
             'work_order_number' => $isVendor ? 'required|string|max:255' : 'nullable|string|max:255',
+            'work_order_document' => 'nullable',
             'items_brought_in' => $isVendor ? 'required|string' : 'nullable|string',
             'items_brought_out' => 'nullable|string',
         ], [
@@ -324,6 +332,9 @@ class GuestController extends Controller
             ? FileStorageService::storePhoto($request->file('identity_photo') ?? $request->input('identity_photo'), 'identities')
             : null;
         $guestPhotoPath = FileStorageService::storePhoto($request->file('guest_photo') ?? $request->input('guest_photo'), 'guests');
+        $workOrderDocPath = ($request->hasFile('work_order_document') || $request->filled('work_order_document'))
+            ? FileStorageService::storeDocument($request->file('work_order_document') ?? $request->input('work_order_document'), 'documents')
+            : null;
 
         if (!$guestPhotoPath) {
             return response()->json(['message' => 'Foto diri tamu wajib diambil atau diunggah.'], 422);
@@ -344,6 +355,7 @@ class GuestController extends Controller
             'card_number' => $cardNumber,
             'purpose' => $request->filled('purpose') ? $request->purpose : ($isMagang ? 'Kegiatan Magang / PKL' : '-'),
             'work_order_number' => $request->work_order_number,
+            'work_order_document' => $workOrderDocPath,
             'items_brought_in' => $request->items_brought_in,
             'items_brought_out' => $request->items_brought_out,
             'meeting_with' => $request->filled('meeting_with') ? $request->meeting_with : ($isMagang ? 'Pembimbing Divisi' : '-'),
@@ -440,8 +452,10 @@ class GuestController extends Controller
         $guest = Guest::with(['identityDeposits.receivedBy', 'identityDeposits.returnedBy', 'verifiedBy', 'checkedOutBy'])->findOrFail($id);
         $guest->identity_photo_url = FileStorageService::formatUrl($guest->identity_photo);
         $guest->guest_photo_url = FileStorageService::formatUrl($guest->guest_photo);
+        $guest->work_order_document_url = FileStorageService::formatUrl($guest->work_order_document);
         unset($guest->identity_photo);
         unset($guest->guest_photo);
+        unset($guest->work_order_document);
 
         return response()->json($guest);
     }
@@ -508,6 +522,11 @@ class GuestController extends Controller
             if ($newGuestPhoto) $data['guest_photo'] = $newGuestPhoto;
         }
 
+        if ($request->hasFile('work_order_document') || $request->filled('work_order_document')) {
+            $newDoc = FileStorageService::storeDocument($request->file('work_order_document') ?? $request->input('work_order_document'), 'documents');
+            if ($newDoc) $data['work_order_document'] = $newDoc;
+        }
+
         $guest->update($data);
 
         AuditLog::log(
@@ -558,6 +577,11 @@ class GuestController extends Controller
 
         if ($request->has('work_order_number')) {
             $updateData['work_order_number'] = $request->work_order_number;
+        }
+
+        if ($request->hasFile('work_order_document') || $request->filled('work_order_document')) {
+            $newDoc = FileStorageService::storeDocument($request->file('work_order_document') ?? $request->input('work_order_document'), 'documents');
+            if ($newDoc) $updateData['work_order_document'] = $newDoc;
         }
 
         if ($request->has('items_brought_in')) {
@@ -779,6 +803,40 @@ class GuestController extends Controller
         }
 
         return $this->streamPhoto($guest->identity_photo);
+    }
+
+    public function workOrderDocument($id)
+    {
+        $guest = Guest::select(['id', 'work_order_document'])->find($id);
+        if (!$guest || empty($guest->work_order_document)) {
+            return response('', 404);
+        }
+
+        return $this->streamDocument($guest->work_order_document);
+    }
+
+    private function streamDocument(string $docData)
+    {
+        if (str_starts_with($docData, 'data:')) {
+            @list($meta, $content) = explode(',', $docData, 2);
+            $mime = 'application/pdf';
+            if (preg_match('/data:([a-zA-Z0-9.\/+_-]+);base64/', $meta, $matches)) {
+                $mime = $matches[1];
+            }
+            $binary = base64_decode($content);
+            $disposition = str_starts_with($mime, 'image/') ? 'inline' : 'inline; filename="surat_perintah_kerja.pdf"';
+            return response($binary, 200, [
+                'Content-Type' => $mime,
+                'Content-Disposition' => $disposition,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($docData)) {
+            return \Illuminate\Support\Facades\Storage::disk('public')->response($docData);
+        }
+
+        return redirect($docData);
     }
 
     private function streamPhoto(string $photoData)

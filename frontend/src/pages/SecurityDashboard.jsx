@@ -459,6 +459,21 @@ const SecurityDashboard = () => {
                   <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#78350f', fontFamily: 'monospace', marginBottom: 8 }}>
                     {verifyingGuest.work_order_number || '-'}
                   </div>
+
+                  {(verifyingGuest.has_work_order_document || verifyingGuest.work_order_document_url) && (
+                    <div style={{ marginBottom: 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => window.open(verifyingGuest.work_order_document_url || `/api/guests/${verifyingGuest.id}/work-order-document`, '_blank')}
+                        className="btn btn-secondary btn-sm"
+                        style={{ width: '100%', justifyContent: 'center', fontSize: '0.75rem', background: '#ffffff', borderColor: '#fcd34d', color: '#92400e', gap: 6, padding: '6px 12px' }}
+                      >
+                        <FileText size={14} />
+                        <span>Buka & Periksa Lampiran SPK (PDF / Foto)</span>
+                      </button>
+                    </div>
+                  )}
+
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Package size={14} style={{ color: '#b45309' }} />
                     <span>Daftar Barang Bawaan Masuk (Pemeriksaan Security):</span>

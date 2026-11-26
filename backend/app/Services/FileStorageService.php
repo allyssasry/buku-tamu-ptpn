@@ -47,6 +47,52 @@ class FileStorageService
     }
 
     /**
+     * Store document (PDF or Image) and return persistent data URI or path.
+     * Supports both PDF files and photo documents of SPK / Surat Tugas.
+     */
+    public static function storeDocument($fileData, string $folder = 'documents'): ?string
+    {
+        if (empty($fileData)) {
+            return null;
+        }
+
+        // Case 1: UploadedFile instance
+        if ($fileData instanceof UploadedFile) {
+            $mime = $fileData->getMimeType();
+            $raw = file_get_contents($fileData->getRealPath());
+
+            if (str_starts_with($mime, 'image/')) {
+                $compressed = self::compressImageRaw($raw);
+                return 'data:image/jpeg;base64,' . base64_encode($compressed);
+            }
+
+            return 'data:' . $mime . ';base64,' . base64_encode($raw);
+        }
+
+        // Case 2: Base64 data URL (PDF or Image)
+        if (is_string($fileData) && str_starts_with($fileData, 'data:')) {
+            if (str_starts_with($fileData, 'data:image')) {
+                @list(, $dataPart) = explode(',', $fileData, 2);
+                if ($dataPart) {
+                    $raw = base64_decode($dataPart);
+                    if ($raw !== false) {
+                        $compressed = self::compressImageRaw($raw);
+                        return 'data:image/jpeg;base64,' . base64_encode($compressed);
+                    }
+                }
+            }
+            return $fileData;
+        }
+
+        // Case 3: Already an existing URL or path
+        if (is_string($fileData) && !empty($fileData)) {
+            return $fileData;
+        }
+
+        return null;
+    }
+
+    /**
      * Compress raw image bytes to max 800px dimension and 75% JPEG quality.
      */
     public static function compressImageRaw(string $raw): string
@@ -97,7 +143,7 @@ class FileStorageService
             return null;
         }
 
-        if (str_starts_with($path, 'data:image') || str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        if (str_starts_with($path, 'data:') || str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             return $path;
         }
 

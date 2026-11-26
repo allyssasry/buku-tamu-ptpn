@@ -18,7 +18,12 @@ import {
   Package,
   CheckCircle2,
   Phone,
-  Briefcase
+  Briefcase,
+  Upload,
+  FileCheck,
+  Eye,
+  Trash2,
+  Paperclip
 } from 'lucide-react';
 
 const GuestForm = () => {
@@ -37,6 +42,8 @@ const GuestForm = () => {
     card_number: '',
     purpose: '',
     work_order_number: '',
+    work_order_document: '',
+    work_order_filename: '',
     items_brought_in: '',
     items_brought_out: '',
     meeting_with: '',
@@ -51,6 +58,94 @@ const GuestForm = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const fileDocInputRef = React.useRef(null);
+
+  const handleDocumentChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isPdf && !isImage) {
+      setError('Format dokumen harus berupa file PDF atau Foto (JPG, PNG).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Ukuran file dokumen maksimal adalah 5MB.');
+      return;
+    }
+
+    setError('');
+
+    if (isPdf) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        handleChange('work_order_document', reader.result);
+        handleChange('work_order_filename', file.name);
+      };
+      reader.readAsDataURL(file);
+    } else if (isImage) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1200;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          handleChange('work_order_document', dataUrl);
+          handleChange('work_order_filename', file.name || 'foto_surat_tugas.jpg');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveDocument = () => {
+    handleChange('work_order_document', '');
+    handleChange('work_order_filename', '');
+    if (fileDocInputRef.current) {
+      fileDocInputRef.current.value = '';
+    }
+  };
+
+  const handlePreviewDocument = () => {
+    if (!formData.work_order_document) return;
+    const doc = formData.work_order_document;
+    const isPdf = doc.startsWith('data:application/pdf') || formData.work_order_filename?.toLowerCase().endsWith('.pdf');
+    try {
+      const arr = doc.split(',');
+      const mime = arr[0].match(/:(.*?);/)?.[1] || (isPdf ? 'application/pdf' : 'image/jpeg');
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch {
+      window.open(doc, '_blank');
+    }
+  };
 
   const handleChange = (field, val) => {
     setFormData(prev => ({
@@ -531,20 +626,6 @@ const GuestForm = () => {
 
                   <div className="form-group">
                     <label className="form-label">
-                      No. SPK / Surat Tugas / Surat Perintah Kerja <span className="required">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Contoh: SPK/PTPN/2026/XI/089"
-                      value={formData.work_order_number}
-                      onChange={(e) => handleChange('work_order_number', e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
                       Nomor HP / WhatsApp <span className="required">*</span>
                     </label>
                     <input
@@ -587,7 +668,7 @@ const GuestForm = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, borderBottom: '1px solid #f1f5f9', paddingBottom: 12 }}>
                   <Building2 size={20} style={{ color: '#047857' }} />
                   <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#0f172a' }}>
-                    2. Informasi Pekerjaan & Tujuan
+                    2. Informasi Pekerjaan & Surat Tugas / SPK
                   </h2>
                 </div>
 
@@ -636,6 +717,129 @@ const GuestForm = () => {
                       ))}
                     </select>
                   </div>
+
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label">
+                      No. SPK / Surat Perintah Kerja / Surat Dinas <span className="required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Contoh: SPK/PTPN/2026/XI/089"
+                      value={formData.work_order_number}
+                      onChange={(e) => handleChange('work_order_number', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {/* UPLOAD FILE PDF / FOTO BUKTI SPK */}
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <FileCheck size={16} style={{ color: '#047857' }} />
+                        <span>Lampiran Bukti Dokumen SPK / Surat Tugas (PDF atau Foto)</span>
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                        Opsional / Dianjurkan
+                      </span>
+                    </label>
+
+                    <input
+                      type="file"
+                      ref={fileDocInputRef}
+                      style={{ display: 'none' }}
+                      accept="application/pdf,image/*"
+                      onChange={handleDocumentChange}
+                    />
+
+                    {!formData.work_order_document ? (
+                      <div
+                        onClick={() => fileDocInputRef.current?.click()}
+                        style={{
+                          border: '2px dashed #cbd5e1',
+                          borderRadius: 10,
+                          padding: '20px 16px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          background: '#f8fafc',
+                          transition: 'all 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.background = '#f0fdf4'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#f8fafc'; }}
+                      >
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 22, background: '#e2e8f0', color: '#475569', marginBottom: 10 }}>
+                          <Upload size={22} />
+                        </div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>
+                          Klik untuk Unggah File PDF atau Foto Surat Tugas / SPK
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                          Mendukung format file <strong>PDF</strong> atau <strong>Foto Kamera / Galeri (JPG, PNG)</strong> (Maksimal 5MB)
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{
+                        border: '1px solid #86efac',
+                        background: '#f0fdf4',
+                        borderRadius: 10,
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                          <div style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 8,
+                            background: formData.work_order_document.startsWith('data:application/pdf') || formData.work_order_filename?.toLowerCase().endsWith('.pdf') ? '#fee2e2' : '#dbeafe',
+                            color: formData.work_order_document.startsWith('data:application/pdf') || formData.work_order_filename?.toLowerCase().endsWith('.pdf') ? '#dc2626' : '#2563eb',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 800,
+                            fontSize: '0.8125rem',
+                            flexShrink: 0
+                          }}>
+                            {formData.work_order_document.startsWith('data:application/pdf') || formData.work_order_filename?.toLowerCase().endsWith('.pdf') ? 'PDF' : 'FOTO'}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {formData.work_order_filename || 'Dokumen SPK / Surat Tugas'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#15803d', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <CheckCircle2 size={13} />
+                              <span>Dokumen terlampir & siap diverifikasi petugas</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={handlePreviewDocument}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: 4, background: '#ffffff' }}
+                            title="Pratinjau Dokumen"
+                          >
+                            <Eye size={14} />
+                            <span>Lihat</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRemoveDocument}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: 4, color: '#dc2626', background: '#ffffff', borderColor: '#fca5a5' }}
+                            title="Hapus / Ganti Dokumen"
+                          >
+                            <Trash2 size={14} />
+                            <span>Hapus</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -669,7 +873,7 @@ const GuestForm = () => {
 
                   {/* Estimasi Barang Bawaan Keluar */}
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label className="form-label">
+                    <label className="form-label" style={{ fontWeight: 600 }}>
                       Rencana / Estimasi Barang Bawaan Keluar (Opsional saat registrasi awal)
                     </label>
                     <textarea

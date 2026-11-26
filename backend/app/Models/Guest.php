@@ -21,6 +21,7 @@ class Guest extends Model
         'card_number',
         'purpose',
         'work_order_number',
+        'work_order_document',
         'items_brought_in',
         'items_brought_out',
         'meeting_with',
